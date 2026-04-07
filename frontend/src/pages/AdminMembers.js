@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
 import {
@@ -9,11 +10,14 @@ import {
 import { Loader2, Users, ShieldCheck, ShieldMinus, UserMinus } from 'lucide-react';
 
 export default function AdminMembers() {
+  const { user } = useAuth();
   const { activeCircle, adminCircles } = useApp();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const circle = activeCircle && adminCircles.find(c => c.id === activeCircle.id) ? activeCircle : adminCircles[0];
+  const circle = activeCircle && (user?.is_site_manager || adminCircles.find(c => c.id === activeCircle.id))
+    ? activeCircle
+    : adminCircles[0] || null;
 
   const fetchMembers = useCallback(async () => {
     if (!circle) return;

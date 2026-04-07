@@ -40,7 +40,11 @@ export function AuthProvider({ children }) {
   };
 
   useEffect(() => {
-    initCsrf().then(() => refreshUser()).finally(() => setLoading(false));
+    initCsrf()
+      .catch(() => {})
+      .then(() => refreshUser())
+      .catch(() => setUser(false))
+      .finally(() => setLoading(false));
   }, [refreshUser]);
 
   return (

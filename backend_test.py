@@ -165,10 +165,11 @@ class CirclesPlatformTester:
             "Get all circles (Site Manager)"
         )
 
-        # Test creating a new circle
+        # Test creating a new circle with unique slug
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         circle_data = {
-            "name": "Test Circle",
-            "slug": "test-circle",
+            "name": f"Test Circle {timestamp}",
+            "slug": f"test-circle-{timestamp}",
             "description": "A test circle for API testing"
         }
         

@@ -145,6 +145,8 @@ def circles_list_create(request):
     if Circle.objects.filter(slug=slug).exists():
         return JsonResponse({'error': 'Slug already exists'}, status=409)
     circle = Circle.objects.create(name=name, slug=slug, description=description)
+    # Auto-add creator as CIRCLE_ADMIN for workflow convenience
+    CircleMembership.objects.create(user=request.user, circle=circle, role='CIRCLE_ADMIN')
     return JsonResponse(serialize_circle(circle), status=201)
 
 

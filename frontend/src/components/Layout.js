@@ -42,7 +42,9 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const selectorCircles = currentView === 'admin' ? adminCircles : circles;
+  const selectorCircles = currentView === 'admin'
+    ? (user?.is_site_manager ? circles : adminCircles)
+    : circles;
   const showSelector = selectorCircles.length > 0 && currentView !== 'site';
 
   const handleViewChange = (view) => {

@@ -1,17 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Loader2, Link2, Copy, Check, Ban } from 'lucide-react';
 
 export default function AdminInvites() {
+  const { user } = useAuth();
   const { activeCircle, adminCircles } = useApp();
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
 
-  const circle = activeCircle && adminCircles.find(c => c.id === activeCircle.id) ? activeCircle : adminCircles[0];
+  const circle = activeCircle && (user?.is_site_manager || adminCircles.find(c => c.id === activeCircle.id))
+    ? activeCircle
+    : adminCircles[0] || null;
 
   const fetchInvites = useCallback(async () => {
     if (!circle) return;

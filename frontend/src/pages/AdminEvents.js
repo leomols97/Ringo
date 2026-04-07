@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
@@ -19,6 +20,7 @@ import { Loader2, Plus, Pencil, Trash2, Users, Calendar } from 'lucide-react';
 const emptyForm = { title: '', description: '', location: '', start_datetime: '', end_datetime: '', published: true };
 
 export default function AdminEvents() {
+  const { user } = useAuth();
   const { activeCircle, adminCircles } = useApp();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +29,9 @@ export default function AdminEvents() {
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const circle = activeCircle && adminCircles.find(c => c.id === activeCircle.id) ? activeCircle : adminCircles[0];
+  const circle = activeCircle && (user?.is_site_manager || adminCircles.find(c => c.id === activeCircle.id))
+    ? activeCircle
+    : adminCircles[0] || null;
 
   const fetchEvents = useCallback(async () => {
     if (!circle) return;

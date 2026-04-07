@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import { Loader2, Users, Calendar, Link2 } from 'lucide-react';
 
 export default function AdminDashboard() {
+  const { user } = useAuth();
   const { activeCircle, adminCircles } = useApp();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const circle = activeCircle && adminCircles.find(c => c.id === activeCircle.id) ? activeCircle : adminCircles[0];
+  // For site managers without admin circles, use active circle if any
+  const circle = activeCircle && (user?.is_site_manager || adminCircles.find(c => c.id === activeCircle.id))
+    ? activeCircle
+    : adminCircles[0] || null;
 
   useEffect(() => {
     if (!circle) { setLoading(false); return; }

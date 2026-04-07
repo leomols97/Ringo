@@ -14,7 +14,7 @@ export function AppProvider({ children }) {
 
   const adminCircles = circles.filter(c => c.role === 'CIRCLE_ADMIN');
   const availableViews = ['user'];
-  if (adminCircles.length > 0) availableViews.push('admin');
+  if (adminCircles.length > 0 || user?.is_site_manager) availableViews.push('admin');
   if (user?.is_site_manager) availableViews.push('site');
 
   const refreshCircles = useCallback(async () => {
