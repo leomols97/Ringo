@@ -335,7 +335,8 @@ def circle_invites(request, pk):
         invites = CircleInvite.objects.filter(
             circle=circle
         ).select_related('created_by', 'circle').order_by('-created_at')
-        return JsonResponse({'invites': [serialize_invite(i) for i in invites]})
+        items, pagination = paginate_qs(request, invites, default_per_page=50)
+        return JsonResponse({'invites': [serialize_invite(i) for i in items], 'pagination': pagination})
 
     invite = CircleInvite.objects.create(
         circle=circle,

@@ -10,6 +10,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '../components/ui/alert-dialog';
 import { Loader2 } from 'lucide-react';
+import { toast } from '../components/ui/sonner';
 
 export default function Profile() {
   const { user, refreshUser, logout } = useAuth();
@@ -33,6 +34,7 @@ export default function Profile() {
       await api.patch('/profile/', form);
       await refreshUser();
       setMsg('Profile updated');
+      toast.success('Profile updated');
     } catch (e) {
       setError(e.response?.data?.error || 'Failed to save');
     } finally {
@@ -46,8 +48,10 @@ export default function Profile() {
       await api.post('/profile/deactivate/');
       await logout();
       navigate('/');
-    } catch {
-      setError('Failed to deactivate account');
+    } catch (e) {
+      const msg = e.response?.data?.error || 'Failed to deactivate account';
+      setError(msg);
+      toast.error(msg);
       setDeactivating(false);
     }
   };

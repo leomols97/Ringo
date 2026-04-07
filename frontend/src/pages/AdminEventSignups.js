@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Loader2, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { toast } from '../components/ui/sonner';
 
 export default function AdminEventSignups() {
   const { id } = useParams();
@@ -20,8 +21,8 @@ export default function AdminEventSignups() {
 
   useEffect(() => { loadSignups(); }, [id]);
 
-  const approve = async (sid) => { await api.post(`/signups/${sid}/approve/`); loadSignups(); };
-  const reject = async (sid) => { await api.post(`/signups/${sid}/reject/`); loadSignups(); };
+  const approve = async (sid) => { try { await api.post(`/signups/${sid}/approve/`); loadSignups(); toast.success('Approved'); } catch (e) { toast.error(e.response?.data?.error || 'Failed'); } };
+  const reject = async (sid) => { try { await api.post(`/signups/${sid}/reject/`); loadSignups(); toast.success('Rejected'); } catch (e) { toast.error(e.response?.data?.error || 'Failed'); } };
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>;
 

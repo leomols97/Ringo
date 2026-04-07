@@ -3,6 +3,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.contrib.auth import authenticate, login, logout
 from django.db import transaction
+from django.db.models import Q
 from .models import User
 from project.utils import (
     parse_json, login_required_json, validate_email_format,
@@ -131,16 +132,38 @@ def profile_view(request):
 @require_POST
 @login_required_json
 def deactivate_view(request):
-    """Deactivate account: sets is_active=False, clears memberships, logs out."""
+    """
+    Deactivate account safely.
+    Blocks if the user is the last active admin of any circle — the user must
+    reassign admin rights first to avoid orphaning a circle.
+    """
     user = request.user
+    from circles.models import CircleMembership
+    # Check: is this user the sole active admin of any circle?
+    admin_memberships = CircleMembership.objects.filter(
+        user=user, role='CIRCLE_ADMIN', active=True
+    ).select_related('circle')
+    orphan_circles = []
+    for m in admin_memberships:
+        other_admins = CircleMembership.objects.filter(
+            circle=m.circle, role='CIRCLE_ADMIN', active=True
+        ).exclude(user=user).count()
+        if other_admins == 0:
+            orphan_circles.append(m.circle.name)
+    if orphan_circles:
+        names = ', '.join(orphan_circles)
+        return JsonResponse({
+            'error': f'You are the last admin of: {names}. Promote another admin before deactivating.',
+            'code': 'last_admin_deactivation',
+            'circles': orphan_circles,
+        }, status=400)
     with transaction.atomic():
-        from circles.models import CircleMembership
         CircleMembership.objects.filter(user=user, active=True).update(active=False)
         user.active_circle = None
         user.is_active = False
         user.save(update_fields=['active_circle', 'is_active'])
     logout(request)
-    return JsonResponse({'ok': True, 'message': 'Account deactivated. All circle memberships have been removed.'})
+    return JsonResponse({'ok': True, 'message': 'Account deactivated.'})
 
 
 @require_GET
@@ -168,9 +191,9 @@ def admin_users(request):
     search = request.GET.get('search', '').strip().lower()
     if search:
         qs = qs.filter(
-            models_Q(email__icontains=search) |
-            models_Q(first_name__icontains=search) |
-            models_Q(last_name__icontains=search)
+            Q(email__icontains=search) |
+            Q(first_name__icontains=search) |
+            Q(last_name__icontains=search)
         )
     items, pagination = paginate_qs(request, qs, default_per_page=50)
     return JsonResponse({
@@ -185,7 +208,3 @@ def admin_users(request):
         } for u in items],
         'pagination': pagination,
     })
-
-
-# Import Q for search
-from django.db.models import Q as models_Q

@@ -19,13 +19,13 @@ export default function AdminDashboard() {
     if (!circle) { setLoading(false); return; }
     setLoading(true);
     Promise.all([
-      api.get(`/circles/${circle.id}/members/`).catch(() => ({ data: { members: [] } })),
-      api.get(`/circles/${circle.id}/events/`).catch(() => ({ data: { events: [] } })),
-      api.get(`/circles/${circle.id}/invites/`).catch(() => ({ data: { invites: [] } })),
+      api.get(`/circles/${circle.id}/members/`).catch(() => ({ data: { pagination: { total: 0 } } })),
+      api.get(`/circles/${circle.id}/events/`).catch(() => ({ data: { pagination: { total: 0 } } })),
+      api.get(`/circles/${circle.id}/invites/`).catch(() => ({ data: { invites: [], pagination: { total: 0 } } })),
     ]).then(([m, e, i]) => {
       setStats({
-        members: m.data.members?.length || 0,
-        events: e.data.events?.length || 0,
+        members: m.data.pagination?.total ?? m.data.members?.length ?? 0,
+        events: e.data.pagination?.total ?? e.data.events?.length ?? 0,
         activeInvites: (i.data.invites || []).filter(inv => inv.is_active && !inv.used_at).length,
       });
     }).finally(() => setLoading(false));

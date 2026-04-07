@@ -16,6 +16,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '../components/ui/alert-dialog';
 import { Loader2, Plus, Pencil, Trash2, Users, Calendar } from 'lucide-react';
+import { toast } from '../components/ui/sonner';
 
 const emptyForm = { title: '', description: '', location: '', start_datetime: '', end_datetime: '', published: true };
 
@@ -72,13 +73,17 @@ export default function AdminEvents() {
       }
       setDialogOpen(false);
       fetchEvents();
-    } catch {}
+      toast.success(editId ? 'Event updated' : 'Event created');
+    } catch (e) { toast.error(e.response?.data?.error || 'Failed to save event'); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (eid) => {
-    await api.delete(`/events/${eid}/`);
-    fetchEvents();
+    try {
+      await api.delete(`/events/${eid}/`);
+      fetchEvents();
+      toast.success('Event deleted');
+    } catch (e) { toast.error(e.response?.data?.error || 'Failed to delete'); }
   };
 
   const update = (k, v) => setForm(p => ({ ...p, [k]: v }));

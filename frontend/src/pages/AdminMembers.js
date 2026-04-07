@@ -9,6 +9,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '../components/ui/alert-dialog';
 import { Loader2, Users, ShieldCheck, ShieldMinus, UserMinus, Search } from 'lucide-react';
+import { toast } from '../components/ui/sonner';
 
 export default function AdminMembers() {
   const { user } = useAuth();
@@ -43,8 +44,12 @@ export default function AdminMembers() {
     try {
       await api.post(`/circles/${circle.id}/members/${mid}/${action}/`);
       fetchMembers();
+      const labels = { promote: 'Promoted', demote: 'Demoted', remove: 'Removed' };
+      toast.success(labels[action] || 'Done');
     } catch (e) {
-      setError(e.response?.data?.error || `Failed to ${action} member`);
+      const msg = e.response?.data?.error || `Failed to ${action} member`;
+      setError(msg);
+      toast.error(msg);
     }
   };
 

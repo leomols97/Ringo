@@ -215,9 +215,11 @@ def event_signups(request, eid):
     if not _can_manage(request.user, event.circle):
         return JsonResponse({'error': 'Forbidden', 'code': 'forbidden'}, status=403)
     signups = EventSignup.objects.filter(event=event).select_related('user').order_by('-requested_at')
+    items, pagination = paginate_qs(request, signups, default_per_page=50)
     return JsonResponse({
-        'signups': [serialize_signup(s) for s in signups],
+        'signups': [serialize_signup(s) for s in items],
         'event': serialize_event(event),
+        'pagination': pagination,
     })
 
 

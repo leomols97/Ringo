@@ -18,6 +18,7 @@ import SiteManagerDashboard from './pages/SiteManagerDashboard';
 import SiteManagerCircles from './pages/SiteManagerCircles';
 import InviteAccept from './pages/InviteAccept';
 import { Loader2 } from 'lucide-react';
+import { Toaster } from './components/ui/sonner';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -71,6 +72,7 @@ function App() {
       <AuthProvider>
         <AppProvider>
           <AppRoutes />
+          <Toaster />
         </AppProvider>
       </AuthProvider>
     </BrowserRouter>

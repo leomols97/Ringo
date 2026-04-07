@@ -66,7 +66,7 @@ export default function Register() {
             <Label htmlFor="password" className="text-xs font-medium uppercase tracking-wider text-gray-500">Password</Label>
             <Input id="password" type="password" value={form.password} onChange={(e) => update('password', e.target.value)}
               className="mt-1.5 rounded-sm border-gray-300 focus:ring-1 focus:ring-black focus:border-black"
-              required minLength={6} data-testid="register-password-input" autoComplete="new-password" />
+              required minLength={8} data-testid="register-password-input" autoComplete="new-password" />
           </div>
           <Button type="submit" className="w-full rounded-sm bg-black text-white hover:bg-gray-800" disabled={loading} data-testid="register-submit-btn">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create account'}

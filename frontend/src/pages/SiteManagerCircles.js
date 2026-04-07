@@ -12,6 +12,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '../components/ui/alert-dialog';
 import { Loader2, Plus, Pencil, Trash2, CircleDot } from 'lucide-react';
+import { toast } from '../components/ui/sonner';
 
 const emptyForm = { name: '', slug: '', description: '' };
 
@@ -53,14 +54,18 @@ export default function SiteManagerCircles() {
       }
       setDialogOpen(false);
       fetchCircles();
+      toast.success(editId ? 'Circle updated' : 'Circle created');
     } catch (e) {
       setError(e.response?.data?.error || 'Failed to save');
     } finally { setSaving(false); }
   };
 
   const handleDelete = async (cid) => {
-    await api.delete(`/circles/${cid}/`);
-    fetchCircles();
+    try {
+      await api.delete(`/circles/${cid}/`);
+      fetchCircles();
+      toast.success('Circle deleted');
+    } catch (e) { toast.error(e.response?.data?.error || 'Failed to delete'); }
   };
 
   const update = (k, v) => setForm(p => ({ ...p, [k]: v }));

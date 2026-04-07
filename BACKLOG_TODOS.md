@@ -1,62 +1,53 @@
-# Backlog TODOs
+# Backlog
 
-## Completed in V1 Hardening
-- [DONE] Environment-driven database, DEBUG, ALLOWED_HOSTS configuration
-- [DONE] PermissionsMixin added for Django auth compatibility
-- [DONE] Unpublished events hidden from normal users (list, detail, signup)
-- [DONE] Last-admin protection on both remove and demote
-- [DONE] Race-safe invite acceptance (SELECT FOR UPDATE + transaction)
-- [DONE] Atomic member removal with active_circle cleanup
-- [DONE] Atomic member demotion
-- [DONE] Email format validation
-- [DONE] Password strength requirements (8+ chars, letter + digit)
-- [DONE] Slug format validation (alphanumeric + hyphens)
-- [DONE] Login rate limiting (cache-based)
-- [DONE] Account deactivation clears memberships
-- [DONE] Database indexes on frequently queried fields
-- [DONE] N+1 query elimination (annotate for circle counts, batch signup loading)
-- [DONE] Structured error codes in API responses
-- [DONE] Member search and sort for admin
-- [DONE] Event published/draft filter for admin
-- [DONE] User search for site manager
-- [DONE] Pagination on all list endpoints
+## Important — Should be done before public launch
 
-## MEDIUM Priority — Remaining
+### Frontend pagination controls
+- Backend returns `pagination` on all list endpoints
+- Frontend currently does not render page controls
+- Lists are capped at 50 items which is sufficient for V1 usage
+- Proper prev/next pagination UI is needed before any circle exceeds ~50 members/events
+- **Priority: HIGH for post-V1**
 
-### Background Cleanup
-- TODO(COPILOT): Add periodic cleanup of expired invite links (cron or management command)
-- TODO(COPILOT): Add periodic cleanup of stale Django sessions
+### Cookie security for production
+- `SESSION_COOKIE_SAMESITE` and `CSRF_COOKIE_SAMESITE` are `None` for the current reverse-proxy setup
+- Should be `Lax` when frontend and backend share an origin in production
+- `SESSION_COOKIE_SECURE` / `CSRF_COOKIE_SECURE` are `True` — correct for HTTPS but blocks local HTTP testing without override
+- **Priority: HIGH before production deployment**
 
-### UX Improvements
-- TODO(COPILOT): Add frontend pagination controls when lists exceed one page
-- TODO(COPILOT): Add toast notifications for successful actions (using sonner)
-- TODO(COPILOT): Add keyboard shortcuts for common admin actions
+### SECURE_PROXY_SSL_HEADER
+- Currently commented out — Django cannot detect HTTPS through the proxy
+- Should be re-enabled with tested reverse-proxy configuration
+- **Priority: MEDIUM**
 
-### Performance
-- TODO(COPILOT): Add response caching for read-heavy endpoints if needed under load
+## Nice to have — Not blocking V1
 
-## LOW Priority — Future
+### Email integration
+- Invitation links: send via email instead of copy-paste only
+- Signup approval/rejection notifications
+- Email verification on registration
+- Password reset flow
 
-### Integrations
-- TODO(COPILOT): Email sending for invitation links
-- TODO(COPILOT): Email notifications for signup approval/rejection
-- TODO(COPILOT): Email verification on registration
+### Background cleanup
+- Periodic cleanup of expired invite links (management command or cron)
+- Periodic cleanup of stale Django sessions
 
 ### Accessibility
-- TODO(COPILOT): Full ARIA audit for screen readers
-- TODO(COPILOT): Skip-to-content link
+- Full ARIA audit for screen readers
+- Skip-to-content link
+- Focus management on dialog open/close
 
-### Production Hardening
-- TODO(COPILOT): Re-enable SECURE_PROXY_SSL_HEADER with proper reverse proxy config
-- TODO(COPILOT): Switch to Redis/Memcached for rate limiting cache in production
-- TODO(COPILOT): Add health check endpoint
-- TODO(COPILOT): Configure whitenoise for static file serving
+### Production infrastructure
+- Switch LocMemCache to Redis for rate limiting (required for multi-worker)
+- Health check endpoint
+- Whitenoise for static file serving
+- Structured logging (JSON format)
 
 ### Testing
-- TODO(COPILOT): Add unit tests for model layer
-- TODO(COPILOT): Add integration tests for critical API flows
-- TODO(COPILOT): Add E2E tests with Playwright
+- Add model-layer unit tests
+- Add E2E tests with Playwright
+- CI integration
 
 ### Documentation
-- TODO(COPILOT): API endpoint reference documentation
-- TODO(COPILOT): Deployment guide for production environments
+- API endpoint reference
+- Deployment guide

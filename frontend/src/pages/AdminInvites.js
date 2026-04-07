@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Loader2, Link2, Copy, Check, Ban } from 'lucide-react';
+import { toast } from '../components/ui/sonner';
 
 export default function AdminInvites() {
   const { user } = useAuth();
@@ -34,13 +35,17 @@ export default function AdminInvites() {
     try {
       await api.post(`/circles/${circle.id}/invites/`);
       await fetchInvites();
-    } catch {}
+      toast.success('Invitation link generated');
+    } catch (e) { toast.error(e.response?.data?.error || 'Failed to generate invite'); }
     finally { setCreating(false); }
   };
 
   const deactivate = async (iid) => {
-    await api.post(`/circles/${circle.id}/invites/${iid}/deactivate/`);
-    fetchInvites();
+    try {
+      await api.post(`/circles/${circle.id}/invites/${iid}/deactivate/`);
+      fetchInvites();
+      toast.success('Invitation deactivated');
+    } catch (e) { toast.error(e.response?.data?.error || 'Failed to deactivate'); }
   };
 
   const copyLink = (token, id) => {
