@@ -3,9 +3,9 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'change-me-in-production')
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
+DEBUG = os.environ.get('DJANGO_DEBUG', 'false').lower() in ('true', '1', 'yes')
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',') if h.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.auth',
@@ -32,15 +32,22 @@ ROOT_URLCONF = 'project.urls'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'circles_db',
-        'USER': 'circleapp',
-        'PASSWORD': 'circleapp123',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.environ.get('PG_NAME', 'circles_db'),
+        'USER': os.environ.get('PG_USER', 'circleapp'),
+        'PASSWORD': os.environ.get('PG_PASSWORD', ''),
+        'HOST': os.environ.get('PG_HOST', 'localhost'),
+        'PORT': os.environ.get('PG_PORT', '5432'),
     }
 }
 
 AUTH_USER_MODEL = 'accounts.User'
+
+# Cache (used for login rate limiting)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 86400 * 7
@@ -71,11 +78,19 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 ]
 
 USE_X_FORWARDED_HOST = True
-# TODO(COPILOT): Re-enable SECURE_PROXY_SSL_HEADER in production with proper Referer forwarding
-# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 USE_TZ = True
 TIME_ZONE = 'UTC'
-
 APPEND_SLASH = True
+
+# Rate limiting: max login attempts per IP+email in a window
+LOGIN_RATE_LIMIT_MAX = int(os.environ.get('LOGIN_RATE_LIMIT_MAX', '10'))
+LOGIN_RATE_LIMIT_WINDOW = int(os.environ.get('LOGIN_RATE_LIMIT_WINDOW', '300'))
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+}

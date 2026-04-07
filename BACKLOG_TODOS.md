@@ -1,73 +1,62 @@
-# Backlog TODOs for Copilot
+# Backlog TODOs
 
-## HIGH Priority
+## Completed in V1 Hardening
+- [DONE] Environment-driven database, DEBUG, ALLOWED_HOSTS configuration
+- [DONE] PermissionsMixin added for Django auth compatibility
+- [DONE] Unpublished events hidden from normal users (list, detail, signup)
+- [DONE] Last-admin protection on both remove and demote
+- [DONE] Race-safe invite acceptance (SELECT FOR UPDATE + transaction)
+- [DONE] Atomic member removal with active_circle cleanup
+- [DONE] Atomic member demotion
+- [DONE] Email format validation
+- [DONE] Password strength requirements (8+ chars, letter + digit)
+- [DONE] Slug format validation (alphanumeric + hyphens)
+- [DONE] Login rate limiting (cache-based)
+- [DONE] Account deactivation clears memberships
+- [DONE] Database indexes on frequently queried fields
+- [DONE] N+1 query elimination (annotate for circle counts, batch signup loading)
+- [DONE] Structured error codes in API responses
+- [DONE] Member search and sort for admin
+- [DONE] Event published/draft filter for admin
+- [DONE] User search for site manager
+- [DONE] Pagination on all list endpoints
 
-### Input Validation Hardening
-- TODO(COPILOT): Add comprehensive email format validation beyond Django's basic EmailField check
-- TODO(COPILOT): Add password strength requirements (min length, complexity rules)
-- TODO(COPILOT): Validate slug format on circle creation (alphanumeric + hyphens only)
-- TODO(COPILOT): Add rate limiting on login attempts to prevent brute force
-
-### Concurrency & Edge Cases
-- TODO(COPILOT): Add optimistic locking for simultaneous admin actions (e.g., two admins removing each other)
-- TODO(COPILOT): Handle race condition in invite acceptance (two users accepting same invite simultaneously)
-- TODO(COPILOT): Ensure atomicity in member removal + active_circle cleanup
-
-### Account Deletion Refinement
-- TODO(COPILOT): Implement full account deletion (not just deactivation) with referential cleanup
-- TODO(COPILOT): Handle orphaned memberships, events, and signups when user account is deleted
-- TODO(COPILOT): Add confirmation email before account deletion in future
-
-## MEDIUM Priority
+## MEDIUM Priority — Remaining
 
 ### Background Cleanup
-- TODO(COPILOT): Add background task to clean up expired invite links periodically
-- TODO(COPILOT): Add background task to clean up stale sessions
+- TODO(COPILOT): Add periodic cleanup of expired invite links (cron or management command)
+- TODO(COPILOT): Add periodic cleanup of stale Django sessions
 
-### Error Handling
-- TODO(COPILOT): Implement structured error responses with error codes
-- TODO(COPILOT): Add more specific error messages for edge cases (e.g., circle at member capacity)
-- TODO(COPILOT): Add request validation middleware for JSON body parsing
-
-### Admin Enhancements
-- TODO(COPILOT): Add filtering and sorting for member lists
-- TODO(COPILOT): Add filtering and sorting for event lists
-- TODO(COPILOT): Add search functionality for site manager user listing
-- TODO(COPILOT): Add pagination for large lists (members, events, invites)
+### UX Improvements
+- TODO(COPILOT): Add frontend pagination controls when lists exceed one page
+- TODO(COPILOT): Add toast notifications for successful actions (using sonner)
+- TODO(COPILOT): Add keyboard shortcuts for common admin actions
 
 ### Performance
-- TODO(COPILOT): Add database indexes for frequently queried fields
-- TODO(COPILOT): Optimize N+1 queries in serialization functions
-- TODO(COPILOT): Add response caching for read-heavy endpoints
+- TODO(COPILOT): Add response caching for read-heavy endpoints if needed under load
 
-## LOW Priority
+## LOW Priority — Future
 
-### Future Integrations
-- TODO(COPILOT): Add email sending for invitation links
-- TODO(COPILOT): Add email notifications for signup approval/rejection
-- TODO(COPILOT): Add push notifications for new events
-- TODO(COPILOT): Add email verification on registration
+### Integrations
+- TODO(COPILOT): Email sending for invitation links
+- TODO(COPILOT): Email notifications for signup approval/rejection
+- TODO(COPILOT): Email verification on registration
 
 ### Accessibility
-- TODO(COPILOT): Audit all interactive elements for keyboard navigation
-- TODO(COPILOT): Add ARIA labels to dynamic content
-- TODO(COPILOT): Test with screen readers
+- TODO(COPILOT): Full ARIA audit for screen readers
+- TODO(COPILOT): Skip-to-content link
 
 ### Production Hardening
-- TODO(COPILOT): Re-enable SECURE_PROXY_SSL_HEADER with proper proxy config
-- TODO(COPILOT): Set SESSION_COOKIE_SECURE and CSRF_COOKIE_SECURE to True
-- TODO(COPILOT): Restrict ALLOWED_HOSTS to specific domains
-- TODO(COPILOT): Add proper logging configuration
+- TODO(COPILOT): Re-enable SECURE_PROXY_SSL_HEADER with proper reverse proxy config
+- TODO(COPILOT): Switch to Redis/Memcached for rate limiting cache in production
 - TODO(COPILOT): Add health check endpoint
-- TODO(COPILOT): Configure static file serving for production (whitenoise or CDN)
+- TODO(COPILOT): Configure whitenoise for static file serving
 
 ### Testing
-- TODO(COPILOT): Add unit tests for models
-- TODO(COPILOT): Add integration tests for API endpoints
+- TODO(COPILOT): Add unit tests for model layer
+- TODO(COPILOT): Add integration tests for critical API flows
 - TODO(COPILOT): Add E2E tests with Playwright
-- TODO(COPILOT): Add test fixtures and factories
 
 ### Documentation
-- TODO(COPILOT): Add API endpoint documentation
-- TODO(COPILOT): Add contributing guide
-- TODO(COPILOT): Add deployment guide for production
+- TODO(COPILOT): API endpoint reference documentation
+- TODO(COPILOT): Deployment guide for production environments

@@ -13,6 +13,10 @@ class Circle(models.Model):
 
     class Meta:
         db_table = 'circles_circle'
+        indexes = [
+            models.Index(fields=['slug']),
+            models.Index(fields=['created_at']),
+        ]
 
     def __str__(self):
         return self.name
@@ -33,6 +37,11 @@ class CircleMembership(models.Model):
     class Meta:
         db_table = 'circles_membership'
         unique_together = ('user', 'circle')
+        indexes = [
+            models.Index(fields=['circle', 'active']),
+            models.Index(fields=['user', 'active']),
+            models.Index(fields=['role']),
+        ]
 
     def __str__(self):
         return f'{self.user.email} - {self.circle.name} ({self.role})'
@@ -50,6 +59,10 @@ class CircleInvite(models.Model):
 
     class Meta:
         db_table = 'circles_invite'
+        indexes = [
+            models.Index(fields=['token']),
+            models.Index(fields=['circle', 'is_active']),
+        ]
 
     def __str__(self):
         return f'Invite to {self.circle.name} ({self.token[:8]}...)'

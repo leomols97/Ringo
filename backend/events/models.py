@@ -18,6 +18,10 @@ class Event(models.Model):
 
     class Meta:
         db_table = 'events_event'
+        indexes = [
+            models.Index(fields=['circle', 'published']),
+            models.Index(fields=['start_datetime']),
+        ]
 
     def __str__(self):
         return self.title
@@ -43,6 +47,10 @@ class EventSignup(models.Model):
     class Meta:
         db_table = 'events_signup'
         unique_together = ('event', 'user')
+        indexes = [
+            models.Index(fields=['event', 'status']),
+            models.Index(fields=['user']),
+        ]
 
     def __str__(self):
         return f'{self.user.email} -> {self.event.title} ({self.status})'

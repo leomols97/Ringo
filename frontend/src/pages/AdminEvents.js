@@ -28,6 +28,7 @@ export default function AdminEvents() {
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [pubFilter, setPubFilter] = useState('all');
 
   const circle = activeCircle && (user?.is_site_manager || adminCircles.find(c => c.id === activeCircle.id))
     ? activeCircle
@@ -37,11 +38,13 @@ export default function AdminEvents() {
     if (!circle) return;
     setLoading(true);
     try {
-      const r = await api.get(`/circles/${circle.id}/events/`);
+      const params = new URLSearchParams();
+      if (pubFilter !== 'all') params.set('published', pubFilter);
+      const r = await api.get(`/circles/${circle.id}/events/?${params}`);
       setEvents(r.data.events || []);
     } catch { setEvents([]); }
     finally { setLoading(false); }
-  }, [circle]);
+  }, [circle, pubFilter]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
@@ -89,6 +92,12 @@ export default function AdminEvents() {
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-gray-400">{circle.name}</p>
           <h1 className="section-title mt-1">Events</h1>
         </div>
+        <div className="flex items-center gap-2">
+          <select value={pubFilter} onChange={e => setPubFilter(e.target.value)} className="text-xs border border-gray-200 rounded-sm px-2 h-8 bg-white" data-testid="events-filter" aria-label="Filter events">
+            <option value="all">All</option>
+            <option value="true">Published</option>
+            <option value="false">Drafts</option>
+          </select>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={openCreate} className="rounded-sm bg-black text-white hover:bg-gray-800 gap-1" data-testid="create-event-btn">
@@ -132,6 +141,7 @@ export default function AdminEvents() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {loading ? (

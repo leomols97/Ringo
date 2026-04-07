@@ -10,7 +10,7 @@ export default function AdminEventSignups() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetch = async () => {
+  const loadSignups = async () => {
     try {
       const r = await api.get(`/events/${id}/signups/`);
       setData(r.data);
@@ -18,10 +18,10 @@ export default function AdminEventSignups() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetch(); }, [id]);
+  useEffect(() => { loadSignups(); }, [id]);
 
-  const approve = async (sid) => { await api.post(`/signups/${sid}/approve/`); fetch(); };
-  const reject = async (sid) => { await api.post(`/signups/${sid}/reject/`); fetch(); };
+  const approve = async (sid) => { await api.post(`/signups/${sid}/approve/`); loadSignups(); };
+  const reject = async (sid) => { await api.post(`/signups/${sid}/reject/`); loadSignups(); };
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>;
 
