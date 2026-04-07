@@ -1,0 +1,80 @@
+{
+  "theme": "Light",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "typography": {
+    "heading_font": "Outfit",
+    "body_font": "IBM Plex Sans",
+    "scale": {
+      "h1": "text-4xl sm:text-5xl tracking-tighter font-medium text-black",
+      "h2": "text-2xl sm:text-3xl tracking-tight font-medium text-black",
+      "h3": "text-xl sm:text-2xl tracking-tight font-medium text-black",
+      "h4": "text-lg font-medium text-black",
+      "body": "text-base leading-relaxed text-gray-800",
+      "small": "text-sm text-gray-500",
+      "overline": "text-xs uppercase tracking-[0.2em] font-bold text-gray-400"
+    }
+  },
+  "colors": {
+    "background": "#FFFFFF",
+    "surface": "#F9F9F9",
+    "border": "#E5E5E5",
+    "primary": "#0A0A0A",
+    "primary_foreground": "#FFFFFF",
+    "secondary": "#F3F4F6",
+    "secondary_foreground": "#111827",
+    "accent_active": "#002FA7",
+    "destructive": "#FF3B30",
+    "muted": "#F3F4F6",
+    "muted_foreground": "#6B7280"
+  },
+  "layout_and_spacing": {
+    "philosophy": "Strict grid hierarchy, dense and compact spacing. Objective, rigid, functional. Zero visual clutter.",
+    "container_padding": "p-6 md:p-8 lg:p-12",
+    "gap_strategy": "gap-4 or gap-6 for tight correlation in data lists. gap-12 for distinct page sections.",
+    "border_radius": "rounded-none or max rounded-sm (2px) to maintain structural precision.",
+    "shadows": "Zero to minimal. Rely on 1px solid borders (border-gray-200) instead of shadows for separation."
+  },
+  "component_strategies": {
+    "dropdowns": "Shadcn Select/DropdownMenu. border border-gray-200, shadow-none, rounded-sm. Highlight active items with bg-gray-100.",
+    "buttons": "Flat, sharp edges (rounded-sm). Primary: bg-black text-white hover:bg-gray-800. Secondary: border border-gray-200 bg-white hover:bg-gray-50. Destructive: border border-red-500 text-red-600 bg-transparent hover:bg-red-50.",
+    "cards": "Cardless layout preferred. Use bare grids with border-b separators, or flat containers with border border-gray-200 and no shadow.",
+    "inputs": "Shadcn inputs. Flat, border-gray-300, focus:ring-1 focus:ring-black focus:border-black rounded-sm bg-white.",
+    "tables_lists": "Strict row-based grid, border-b border-gray-200. Clear typographic hierarchy, right-aligned meta data.",
+    "navigation": "Sticky top bar, solid white bg, border-b border-gray-200. No glassmorphism. Absolute structural clarity."
+  },
+  "motion": {
+    "hover": "Snappy transitions (150ms). No slow fades.",
+    "entrance": "Minimal movement. Pure opacity fades (duration-200) if necessary, otherwise load instantly.",
+    "dropdowns": "Instant pop or 100ms fade to feel extremely performant."
+  },
+  "icons": {
+    "library": "lucide-react",
+    "style": "Minimal, geometric, 1.5px to 2px stroke weight."
+  },
+  "images_and_media": {
+    "hero_login": {
+      "url": "https://images.unsplash.com/photo-1661169398420-e8d229fb39f4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwyfHxtaW5pbWFsaXN0JTIwb2ZmaWNlJTIwd29ya3NwYWNlfGVufDB8fHx8MTc3NTU3MDExMHww&ixlib=rb-4.1.0&q=85",
+      "description": "Minimal workspace for authentication screen side panel (split screen design)"
+    },
+    "event_placeholder": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/6371d372-cc14-479e-95d1-3af3fe2c002f/images/87166b42b474de4f47b7e155d9e0723d040350e4241a6f111d17a82df159b536.png",
+      "description": "Frosted glass architectural abstraction for default event covers to maintain premium feel"
+    },
+    "dashboard_empty_state": {
+      "url": "https://images.pexels.com/photos/6893380/pexels-photo-6893380.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Elegant minimalist setup for empty dashboard states or unselected circles"
+    }
+  },
+  "testing": {
+    "rules": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case."
+  },
+  "instructions_to_main_agent": [
+    "Install and configure 'Outfit' for headings and 'IBM Plex Sans' for body text via Google Fonts. Overwrite standard sans in Tailwind config.",
+    "The UI must represent Archetype 4 (Swiss & High-Contrast). Strip out all gradient backgrounds, blur effects, soft shadows, and rounded-xl/2xl corners from Shadcn defaults.",
+    "Build the multi-tenant navigation bar as a stark, highly functional top-bar with a 1px solid bottom border. The Role-view dropdown and Circle selector dropdown must sit prominently in this header.",
+    "For the 'Role-view dropdown', strictly segregate User, Admin, and Site Manager views. Ensure the active role dictates the sidebar/content context.",
+    "Implement the 'Circle selector dropdown' to dynamically swap out the active circle's events and details without a full page reload if possible.",
+    "Lists of events and members should be brutally simple: heavy font weights for titles/names, monospaced or highly readable small caps for metadata (dates/roles), separated by crisp 1px borders.",
+    "Ensure total adherence to accessibility: test text contrast ratios (use pure black on white). Add a 'data-testid' attribute to every actionable element (buttons, dropdown items, form inputs) to support robust E2E testing."
+  ]
+}
