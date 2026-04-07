@@ -1,3 +1,4 @@
+import uuid as uuid_mod
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
@@ -58,10 +59,7 @@ def register_view(request):
         return JsonResponse({'error': pw_err, 'code': 'weak_password'}, status=400)
     if User.objects.filter(email=email).exists():
         return JsonResponse({'error': 'Email already registered', 'code': 'email_exists'}, status=409)
-    user = User.objects.create_user(
-        email=email, password=password,
-        first_name=first_name, last_name=last_name,
-    )
+    user = User.objects.create_user(email=email, password=password, first_name=first_name, last_name=last_name)
     login(request, user)
     return JsonResponse(serialize_user(user), status=201)
 
@@ -131,97 +129,83 @@ def profile_view(request):
 
 @require_POST
 @login_required_json
-def deactivate_view(request):
+def delete_account_view(request):
+    """
+    Permanently remove the user's profile.
+    Anonymizes PII (email, name, phone), deactivates all memberships, logs out.
+    Blocked if user is the last admin of any circle.
+    The row is kept for referential integrity but all personal data is erased.
+    """
     user = request.user
     from circles.models import CircleMembership
-    admin_memberships = CircleMembership.objects.filter(
-        user=user, role='CIRCLE_ADMIN', active=True
-    ).select_related('circle')
+    admin_memberships = CircleMembership.objects.filter(user=user, role='CIRCLE_ADMIN', active=True).select_related('circle')
     orphan_circles = []
     for m in admin_memberships:
-        other_admins = CircleMembership.objects.filter(
-            circle=m.circle, role='CIRCLE_ADMIN', active=True
-        ).exclude(user=user).count()
-        if other_admins == 0:
+        if CircleMembership.objects.filter(circle=m.circle, role='CIRCLE_ADMIN', active=True).exclude(user=user).count() == 0:
             orphan_circles.append(m.circle.name)
     if orphan_circles:
-        names = ', '.join(orphan_circles)
         return JsonResponse({
-            'error': f'You are the last admin of: {names}. Promote another admin before deactivating.',
-            'code': 'last_admin_deactivation',
-            'circles': orphan_circles,
+            'error': f'You are the last admin of: {", ".join(orphan_circles)}. Promote another admin first.',
+            'code': 'last_admin_deletion', 'circles': orphan_circles,
         }, status=400)
+    anon_email = f'deleted-{uuid_mod.uuid4().hex[:12]}@removed.local'
     with transaction.atomic():
         CircleMembership.objects.filter(user=user, active=True).update(active=False)
+        user.email = anon_email
+        user.first_name = 'Deleted'
+        user.last_name = 'User'
+        user.phone = ''
         user.active_circle = None
         user.is_active = False
-        user.save(update_fields=['active_circle', 'is_active'])
+        user.set_unusable_password()
+        user.save()
     logout(request)
-    return JsonResponse({'ok': True, 'message': 'Account deactivated.'})
+    return JsonResponse({'ok': True, 'message': 'Your account has been permanently removed.'})
 
 
 # ── Dashboard ───────────────────────────────────────────────
 @require_GET
 @login_required_json
 def dashboard_view(request):
-    """User dashboard: recent signups + events from all my circles."""
     from circles.models import CircleMembership
     from events.models import Event, EventSignup
+    from django.utils import timezone as tz
 
     user = request.user
-    my_circle_ids = list(
-        CircleMembership.objects.filter(user=user, active=True).values_list('circle_id', flat=True)
-    )
+    my_circle_ids = list(CircleMembership.objects.filter(user=user, active=True).values_list('circle_id', flat=True))
 
-    # Recent signups by this user (last 10)
-    recent_signups = EventSignup.objects.filter(
-        user=user
-    ).select_related('event', 'event__circle').order_by('-requested_at')[:10]
+    recent_signups = EventSignup.objects.filter(user=user).select_related('event', 'event__circle').order_by('-requested_at')[:10]
     signups_data = [{
-        'id': str(s.id),
-        'status': s.status,
-        'requested_at': s.requested_at.isoformat(),
+        'id': str(s.id), 'status': s.status, 'requested_at': s.requested_at.isoformat(),
         'event': {
-            'id': str(s.event.id),
-            'title': s.event.title,
+            'id': str(s.event.id), 'title': s.event.title,
             'start_datetime': s.event.start_datetime.isoformat(),
-            'circle_name': s.event.circle.name,
-            'circle_id': str(s.event.circle_id),
+            'circle_name': s.event.circle.name, 'circle_id': str(s.event.circle_id),
             'visibility': s.event.visibility,
         },
     } for s in recent_signups]
 
-    # Upcoming published events from all my circles
-    from django.utils import timezone as tz
     circle_events = Event.objects.filter(
-        circle_id__in=my_circle_ids, published=True,
-        start_datetime__gte=tz.now(),
+        circle_id__in=my_circle_ids, published=True, start_datetime__gte=tz.now(),
     ).select_related('circle').order_by('start_datetime')[:20]
 
-    # Batch-load signups
     signup_map = {}
     if circle_events:
         for su in EventSignup.objects.filter(event__in=circle_events, user=user):
             signup_map[su.event_id] = su
 
     events_data = [{
-        'id': str(e.id),
-        'title': e.title,
-        'start_datetime': e.start_datetime.isoformat(),
-        'end_datetime': e.end_datetime.isoformat(),
-        'location': e.location,
-        'visibility': e.visibility,
-        'circle_name': e.circle.name,
-        'circle_id': str(e.circle_id),
+        'id': str(e.id), 'title': e.title,
+        'start_datetime': e.start_datetime.isoformat(), 'end_datetime': e.end_datetime.isoformat(),
+        'location': e.location, 'visibility': e.visibility,
+        'circle_name': e.circle.name, 'circle_id': str(e.circle_id),
         'my_signup_status': signup_map[e.id].status if e.id in signup_map else None,
     } for e in circle_events]
 
-    return JsonResponse({
-        'recent_signups': signups_data,
-        'circle_events': events_data,
-    })
+    return JsonResponse({'recent_signups': signups_data, 'circle_events': events_data})
 
 
+# ── Site manager ────────────────────────────────────────────
 @require_GET
 @login_required_json
 def admin_overview(request):
@@ -258,3 +242,30 @@ def admin_users(request):
         } for u in items],
         'pagination': pagination,
     })
+
+
+@require_http_methods(['GET', 'PATCH'])
+@login_required_json
+def admin_user_detail(request, uid):
+    """Site manager: view or update a specific user."""
+    if not request.user.is_site_manager:
+        return JsonResponse({'error': 'Forbidden', 'code': 'forbidden'}, status=403)
+    try:
+        target = User.objects.get(id=uid)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'User not found', 'code': 'not_found'}, status=404)
+    if request.method == 'GET':
+        return JsonResponse(serialize_user(target))
+    data = parse_json(request)
+    if not data:
+        return JsonResponse({'error': 'Invalid JSON', 'code': 'invalid_json'}, status=400)
+    if 'first_name' in data:
+        target.first_name = data['first_name'].strip()
+    if 'last_name' in data:
+        target.last_name = data['last_name'].strip()
+    if 'phone' in data:
+        target.phone = (data['phone'] or '').strip()[:30]
+    if 'is_active' in data:
+        target.is_active = bool(data['is_active'])
+    target.save()
+    return JsonResponse(serialize_user(target))

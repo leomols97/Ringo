@@ -1,14 +1,10 @@
 # Backlog
 
-## Should do before production
-- Frontend pagination controls (backend ready, UI caps at 50 items)
-- Cookie SameSite settings for production (currently None for reverse-proxy)
-- Public event browsing page (currently public events are only visible via direct link or dashboard)
-
-## Nice to have
-- Email notifications (invite, signup approval)
+## Remaining optional improvements
+- Cookie SameSite configuration for production same-origin deployment
+- Email notifications for invites and signup decisions
 - Password reset flow
-- Background cleanup of expired invites
+- Background cleanup of expired invitation links
 - Full ARIA accessibility audit
-- Redis cache for rate limiting in multi-worker setups
+- Redis/Memcached for rate limiting in multi-worker production
 - Health check endpoint

@@ -20,6 +20,7 @@ const navLinks = {
   user: [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/circles', label: 'My Circles' },
+    { to: '/public-events', label: 'Public Events' },
   ],
   admin: [
     { to: '/admin', label: 'Overview' },

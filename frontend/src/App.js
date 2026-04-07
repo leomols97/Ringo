@@ -8,6 +8,8 @@ import Register from './pages/Register';
 import UserDashboard from './pages/UserDashboard';
 import Profile from './pages/Profile';
 import MyCircles from './pages/MyCircles';
+import CircleDetail from './pages/CircleDetail';
+import PublicEvents from './pages/PublicEvents';
 import EventDetail from './pages/EventDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminMembers from './pages/AdminMembers';
@@ -53,6 +55,8 @@ function AppRoutes() {
       <Route path="/dashboard" element={<P><UserDashboard /></P>} />
       <Route path="/profile" element={<P><Profile /></P>} />
       <Route path="/circles" element={<P><MyCircles /></P>} />
+      <Route path="/circles/:id" element={<P><CircleDetail /></P>} />
+      <Route path="/public-events" element={<P><PublicEvents /></P>} />
       <Route path="/events/:id" element={<P><EventDetail /></P>} />
       <Route path="/admin" element={<P><AdminDashboard /></P>} />
       <Route path="/admin/members" element={<P><AdminMembers /></P>} />

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useApp } from '../contexts/AppContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../lib/api';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -17,14 +17,9 @@ export default function Profile() {
   const { user, refreshUser, logout } = useAuth();
   const { circles } = useApp();
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    first_name: user?.first_name || '',
-    last_name: user?.last_name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-  });
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
   const [saving, setSaving] = useState(false);
-  const [deactivating, setDeactivating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -34,31 +29,22 @@ export default function Profile() {
   const update = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const handleSave = async (e) => {
-    e.preventDefault();
-    setSaving(true); setError('');
-    try {
-      await api.patch('/profile/', form);
-      await refreshUser();
-      toast.success('Profile updated');
-    } catch (e) {
-      const msg = e.response?.data?.error || 'Failed to save';
-      setError(msg);
-    } finally {
-      setSaving(false);
-    }
+    e.preventDefault(); setSaving(true); setError('');
+    try { await api.patch('/profile/', form); await refreshUser(); toast.success('Profile updated'); }
+    catch (e) { setError(e.response?.data?.error || 'Failed to save'); }
+    finally { setSaving(false); }
   };
 
-  const handleDeactivate = async () => {
-    setDeactivating(true);
+  const handleDelete = async () => {
+    setDeleting(true);
     try {
-      await api.post('/profile/deactivate/');
+      await api.post('/profile/delete/');
+      toast.success('Account removed');
       await logout();
       navigate('/');
     } catch (e) {
-      const msg = e.response?.data?.error || 'Failed to deactivate account';
-      setError(msg);
-      toast.error(msg);
-      setDeactivating(false);
+      const msg = e.response?.data?.error || 'Failed to delete account';
+      setError(msg); toast.error(msg); setDeleting(false);
     }
   };
 
@@ -92,7 +78,6 @@ export default function Profile() {
         </Button>
       </form>
 
-      {/* Circles list */}
       <div className="mt-10 pt-8 border-t border-gray-200 max-w-md">
         <h2 className="text-lg font-medium tracking-tight text-black" style={{ fontFamily: 'Outfit' }}>My circles</h2>
         {circles.length === 0 ? (
@@ -100,7 +85,7 @@ export default function Profile() {
         ) : (
           <div className="mt-3 space-y-1">
             {circles.map(c => (
-              <div key={c.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0" data-testid={`profile-circle-${c.id}`}>
+              <Link key={c.id} to={`/circles/${c.id}`} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 -mx-1 px-1 rounded-sm transition-colors" data-testid={`profile-circle-${c.id}`}>
                 <div className="flex items-center gap-2">
                   <Circle className="h-3.5 w-3.5 text-gray-400" />
                   <span className="text-sm text-black">{c.name}</span>
@@ -108,31 +93,30 @@ export default function Profile() {
                 <span className={`text-xs px-2 py-0.5 rounded-sm border ${c.role === 'CIRCLE_ADMIN' ? 'text-blue-700 border-blue-200 bg-blue-50' : 'text-gray-500 border-gray-200'}`}>
                   {c.role === 'CIRCLE_ADMIN' ? 'Admin' : 'Member'}
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
         )}
       </div>
 
-      {/* Danger zone */}
       <div className="mt-10 pt-8 border-t border-gray-200 max-w-md">
-        <h2 className="text-lg font-medium tracking-tight text-red-600" style={{ fontFamily: 'Outfit' }}>Danger zone</h2>
-        <p className="text-sm text-gray-500 mt-1">Deactivating your account will log you out and prevent future sign-ins.</p>
+        <h2 className="text-lg font-medium tracking-tight text-red-600" style={{ fontFamily: 'Outfit' }}>Delete account</h2>
+        <p className="text-sm text-gray-500 mt-1">Permanently remove your profile. Your personal data will be erased and cannot be recovered.</p>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="outline" className="mt-4 rounded-sm border-red-300 text-red-600 hover:bg-red-50" data-testid="deactivate-trigger-btn">
-              Deactivate account
+            <Button variant="outline" className="mt-4 rounded-sm border-red-300 text-red-600 hover:bg-red-50" data-testid="delete-account-trigger-btn">
+              Delete my account
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent className="rounded-sm">
             <AlertDialogHeader>
-              <AlertDialogTitle>Deactivate your account?</AlertDialogTitle>
-              <AlertDialogDescription>This action will deactivate your account. You will be signed out immediately.</AlertDialogDescription>
+              <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+              <AlertDialogDescription>This will permanently erase your personal data (name, email, phone). This action cannot be undone.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel className="rounded-sm">Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeactivate} className="rounded-sm bg-red-600 hover:bg-red-700" disabled={deactivating} data-testid="deactivate-confirm-btn">
-                {deactivating ? 'Deactivating...' : 'Deactivate'}
+              <AlertDialogAction onClick={handleDelete} className="rounded-sm bg-red-600 hover:bg-red-700" disabled={deleting} data-testid="delete-account-confirm-btn">
+                {deleting ? 'Deleting...' : 'Delete permanently'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

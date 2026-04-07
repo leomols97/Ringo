@@ -1,36 +1,31 @@
 # Assumptions
 
-## Event Visibility Model
-Two independent dimensions:
-- **published** (bool): controls whether non-admins can see the event at all. Draft events (published=false) are invisible to normal users.
-- **visibility** (PUBLIC/PRIVATE): controls who can sign up. PUBLIC = any authenticated user. PRIVATE = circle members only. This only applies to published events.
+## Account Removal
+- "Delete account" performs permanent anonymization: email randomized, name set to "Deleted User", phone cleared, password made unusable
+- The database row is kept with is_active=False for referential integrity (events/signups the user created still reference a valid row)
+- All memberships are deactivated
+- Blocked if user is last admin of any circle — must transfer admin rights first
+- This is genuine removal: the user cannot log in, their identity is erased, the email is freed up
 
-Both are enforced on the backend, not just the UI.
+## Event Visibility
+- Two independent dimensions: published (draft vs live) and visibility (PUBLIC vs PRIVATE)
+- Draft events are invisible to non-admins regardless of visibility
+- PUBLIC published events: any authenticated user can view and sign up (no membership needed)
+- PRIVATE published events: only circle members can view and sign up
+- Admin approval workflow applies to all signups regardless of visibility
 
-## Account Deactivation
-- Blocked if user is the last admin of any circle
-- When allowed: deactivates all memberships, clears active_circle, sets is_active=False, logs out
-- User data retained for referential integrity
+## User Management Scope
+- Normal users: CRUD own profile only
+- Circle admins: manage members within their own circles only — no global user powers
+- Site managers: view/update any user (name, phone, active status), full circle CRUD, platform overview
 
-## Invitation Links
-- Single-use, 7-day expiry, race-safe (SELECT FOR UPDATE)
-- After acceptance, invite is both used and deactivated
-
-## Auth Model
-- `manage.py createsuperuser` creates a site manager (is_site_manager=True, is_superuser=False)
-- Django admin is not used; is_staff is always False
-- Authorization via is_site_manager (global) and CircleMembership.role (per-circle)
+## Circle Profiles
+- Circles have name, slug, description, and address
+- Members can view the full circle profile
+- Circle admins can edit name, description, address
+- Site managers have full CRUD
 
 ## Dashboard
-- Shows user's recent signups (last 10) across all circles
-- Shows upcoming published events from all circles the user belongs to (next 20)
+- Recent signups: last 10 signup requests by the current user, across all circles
+- Circle events: next 20 upcoming published events from all circles the user belongs to
 - Both sections show circle name for context
-
-## Phone Field
-- Optional, max 30 chars, stored as-is (no format validation beyond length)
-- Editable via profile PATCH
-
-## Circle Address
-- Optional, max 500 chars
-- Editable by circle admins and site managers via circle PATCH
-- Included in circle create payload

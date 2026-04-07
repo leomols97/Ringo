@@ -75,6 +75,22 @@ def active_circle_events(request):
     })
 
 
+@require_GET
+@login_required_json
+def public_events(request):
+    """Browse all published PUBLIC events."""
+    qs = Event.objects.filter(published=True, visibility='PUBLIC').select_related('circle').order_by('start_datetime')
+    items, pagination = paginate_qs(request, qs, default_per_page=20)
+    signup_map = {}
+    if items:
+        for su in EventSignup.objects.filter(event__in=items, user=request.user):
+            signup_map[su.event_id] = su
+    return JsonResponse({
+        'events': [serialize_event(e, request.user, signup_map) for e in items],
+        'pagination': pagination,
+    })
+
+
 @require_http_methods(['GET', 'POST'])
 @login_required_json
 def circle_events(request, circle_id):

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import Pagination from '../components/Pagination';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -19,6 +20,8 @@ export default function AdminMembers() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('joined_at');
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
 
   const circle = activeCircle && (user?.is_site_manager || adminCircles.find(c => c.id === activeCircle.id))
     ? activeCircle
@@ -31,11 +34,13 @@ export default function AdminMembers() {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
       if (sort) params.set('sort', sort);
+      params.set('page', page);
       const r = await api.get(`/circles/${circle.id}/members/?${params}`);
       setMembers(r.data.members || []);
+      setPagination(r.data.pagination || null);
     } catch { setMembers([]); }
     finally { setLoading(false); }
-  }, [circle, search, sort]);
+  }, [circle, search, sort, page]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
@@ -133,6 +138,7 @@ export default function AdminMembers() {
               </div>
             </div>
           ))}
+          <Pagination pagination={pagination} onPageChange={setPage} />
         </div>
       )}
     </div>
