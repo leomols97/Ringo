@@ -15,10 +15,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '../components/ui/alert-dialog';
-import { Loader2, Plus, Pencil, Trash2, Users, Calendar } from 'lucide-react';
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from '../components/ui/select';
+import { Loader2, Plus, Pencil, Trash2, Users, Calendar, Globe, Lock } from 'lucide-react';
 import { toast } from '../components/ui/sonner';
 
-const emptyForm = { title: '', description: '', location: '', start_datetime: '', end_datetime: '', published: true };
+const emptyForm = { title: '', description: '', location: '', start_datetime: '', end_datetime: '', published: true, visibility: 'PRIVATE' };
 
 export default function AdminEvents() {
   const { user } = useAuth();
@@ -32,8 +35,7 @@ export default function AdminEvents() {
   const [pubFilter, setPubFilter] = useState('all');
 
   const circle = activeCircle && (user?.is_site_manager || adminCircles.find(c => c.id === activeCircle.id))
-    ? activeCircle
-    : adminCircles[0] || null;
+    ? activeCircle : adminCircles[0] || null;
 
   const fetchEvents = useCallback(async () => {
     if (!circle) return;
@@ -54,7 +56,7 @@ export default function AdminEvents() {
     setForm({
       title: ev.title, description: ev.description || '', location: ev.location || '',
       start_datetime: ev.start_datetime?.slice(0, 16) || '', end_datetime: ev.end_datetime?.slice(0, 16) || '',
-      published: ev.published,
+      published: ev.published, visibility: ev.visibility || 'PRIVATE',
     });
     setEditId(ev.id);
     setDialogOpen(true);
@@ -66,11 +68,8 @@ export default function AdminEvents() {
       const payload = { ...form };
       if (payload.start_datetime && !payload.start_datetime.includes('T')) payload.start_datetime += 'T00:00';
       if (payload.end_datetime && !payload.end_datetime.includes('T')) payload.end_datetime += 'T00:00';
-      if (editId) {
-        await api.patch(`/events/${editId}/`, payload);
-      } else {
-        await api.post(`/circles/${circle.id}/events/`, payload);
-      }
+      if (editId) { await api.patch(`/events/${editId}/`, payload); }
+      else { await api.post(`/circles/${circle.id}/events/`, payload); }
       setDialogOpen(false);
       fetchEvents();
       toast.success(editId ? 'Event updated' : 'Event created');
@@ -79,14 +78,11 @@ export default function AdminEvents() {
   };
 
   const handleDelete = async (eid) => {
-    try {
-      await api.delete(`/events/${eid}/`);
-      fetchEvents();
-      toast.success('Event deleted');
-    } catch (e) { toast.error(e.response?.data?.error || 'Failed to delete'); }
+    try { await api.delete(`/events/${eid}/`); fetchEvents(); toast.success('Event deleted'); }
+    catch (e) { toast.error(e.response?.data?.error || 'Failed to delete'); }
   };
 
-  const update = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const upd = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   if (!circle) return <div className="empty-state"><Calendar className="h-10 w-10 text-gray-300" /><p className="empty-state-text mt-3">Select an admin circle.</p></div>;
 
@@ -103,49 +99,63 @@ export default function AdminEvents() {
             <option value="true">Published</option>
             <option value="false">Drafts</option>
           </select>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreate} className="rounded-sm bg-black text-white hover:bg-gray-800 gap-1" data-testid="create-event-btn">
-              <Plus className="h-4 w-4" /> New event
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="rounded-sm max-w-md">
-            <DialogHeader><DialogTitle style={{ fontFamily: 'Outfit' }}>{editId ? 'Edit event' : 'New event'}</DialogTitle></DialogHeader>
-            <div className="space-y-3 py-2">
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-gray-500">Title</Label>
-                <Input value={form.title} onChange={e => update('title', e.target.value)} className="mt-1 rounded-sm" data-testid="event-form-title" />
-              </div>
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-gray-500">Description</Label>
-                <Textarea value={form.description} onChange={e => update('description', e.target.value)} className="mt-1 rounded-sm" rows={3} data-testid="event-form-desc" />
-              </div>
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-gray-500">Location</Label>
-                <Input value={form.location} onChange={e => update('location', e.target.value)} className="mt-1 rounded-sm" data-testid="event-form-location" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs uppercase tracking-wider text-gray-500">Start</Label>
-                  <Input type="datetime-local" value={form.start_datetime} onChange={e => update('start_datetime', e.target.value)} className="mt-1 rounded-sm text-xs" data-testid="event-form-start" />
-                </div>
-                <div>
-                  <Label className="text-xs uppercase tracking-wider text-gray-500">End</Label>
-                  <Input type="datetime-local" value={form.end_datetime} onChange={e => update('end_datetime', e.target.value)} className="mt-1 rounded-sm text-xs" data-testid="event-form-end" />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={form.published} onCheckedChange={v => update('published', v)} data-testid="event-form-published" />
-                <Label className="text-xs text-gray-500">Published</Label>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleSave} className="rounded-sm bg-black text-white hover:bg-gray-800" disabled={saving} data-testid="event-form-save">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editId ? 'Update' : 'Create'}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openCreate} className="rounded-sm bg-black text-white hover:bg-gray-800 gap-1" data-testid="create-event-btn">
+                <Plus className="h-4 w-4" /> New event
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="rounded-sm max-w-md">
+              <DialogHeader><DialogTitle style={{ fontFamily: 'Outfit' }}>{editId ? 'Edit event' : 'New event'}</DialogTitle></DialogHeader>
+              <div className="space-y-3 py-2">
+                <div>
+                  <Label className="text-xs uppercase tracking-wider text-gray-500">Title</Label>
+                  <Input value={form.title} onChange={e => upd('title', e.target.value)} className="mt-1 rounded-sm" data-testid="event-form-title" />
+                </div>
+                <div>
+                  <Label className="text-xs uppercase tracking-wider text-gray-500">Description</Label>
+                  <Textarea value={form.description} onChange={e => upd('description', e.target.value)} className="mt-1 rounded-sm" rows={3} data-testid="event-form-desc" />
+                </div>
+                <div>
+                  <Label className="text-xs uppercase tracking-wider text-gray-500">Location</Label>
+                  <Input value={form.location} onChange={e => upd('location', e.target.value)} className="mt-1 rounded-sm" data-testid="event-form-location" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs uppercase tracking-wider text-gray-500">Start</Label>
+                    <Input type="datetime-local" value={form.start_datetime} onChange={e => upd('start_datetime', e.target.value)} className="mt-1 rounded-sm text-xs" data-testid="event-form-start" />
+                  </div>
+                  <div>
+                    <Label className="text-xs uppercase tracking-wider text-gray-500">End</Label>
+                    <Input type="datetime-local" value={form.end_datetime} onChange={e => upd('end_datetime', e.target.value)} className="mt-1 rounded-sm text-xs" data-testid="event-form-end" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={form.published} onCheckedChange={v => upd('published', v)} data-testid="event-form-published" />
+                    <Label className="text-xs text-gray-500">Published</Label>
+                  </div>
+                  <div>
+                    <Label className="text-xs uppercase tracking-wider text-gray-500">Visibility</Label>
+                    <Select value={form.visibility} onValueChange={v => upd('visibility', v)}>
+                      <SelectTrigger className="mt-1 rounded-sm text-xs h-8" data-testid="event-form-visibility">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-sm">
+                        <SelectItem value="PRIVATE" className="text-xs">Private</SelectItem>
+                        <SelectItem value="PUBLIC" className="text-xs">Public</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleSave} className="rounded-sm bg-black text-white hover:bg-gray-800" disabled={saving} data-testid="event-form-save">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editId ? 'Update' : 'Create'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -158,7 +168,10 @@ export default function AdminEvents() {
           {events.map(ev => (
             <div key={ev.id} className="data-row px-1" data-testid={`event-row-${ev.id}`}>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-black">{ev.title}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium text-black">{ev.title}</p>
+                  {ev.visibility === 'PUBLIC' ? <Globe className="h-3 w-3 text-blue-500" /> : <Lock className="h-3 w-3 text-gray-400" />}
+                </div>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {new Date(ev.start_datetime).toLocaleDateString()} {!ev.published && '(Draft)'}
                 </p>
@@ -175,10 +188,7 @@ export default function AdminEvents() {
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600" data-testid={`delete-trigger-${ev.id}`}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent className="rounded-sm">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete event?</AlertDialogTitle>
-                      <AlertDialogDescription>Delete "{ev.title}"? This cannot be undone.</AlertDialogDescription>
-                    </AlertDialogHeader>
+                    <AlertDialogHeader><AlertDialogTitle>Delete event?</AlertDialogTitle><AlertDialogDescription>Delete "{ev.title}"? This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel className="rounded-sm">Cancel</AlertDialogCancel>
                       <AlertDialogAction onClick={() => handleDelete(ev.id)} className="rounded-sm bg-red-600 hover:bg-red-700" data-testid={`delete-confirm-${ev.id}`}>Delete</AlertDialogAction>

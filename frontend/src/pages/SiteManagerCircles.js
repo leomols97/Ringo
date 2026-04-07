@@ -14,7 +14,7 @@ import {
 import { Loader2, Plus, Pencil, Trash2, CircleDot } from 'lucide-react';
 import { toast } from '../components/ui/sonner';
 
-const emptyForm = { name: '', slug: '', description: '' };
+const emptyForm = { name: '', slug: '', description: '', address: '' };
 
 export default function SiteManagerCircles() {
   const [circles, setCircles] = useState([]);
@@ -38,7 +38,7 @@ export default function SiteManagerCircles() {
 
   const openCreate = () => { setForm(emptyForm); setEditId(null); setError(''); setDialogOpen(true); };
   const openEdit = (c) => {
-    setForm({ name: c.name, slug: c.slug, description: c.description || '' });
+    setForm({ name: c.name, slug: c.slug, description: c.description || '', address: c.address || '' });
     setEditId(c.id);
     setError('');
     setDialogOpen(true);
@@ -48,7 +48,7 @@ export default function SiteManagerCircles() {
     setSaving(true); setError('');
     try {
       if (editId) {
-        await api.patch(`/circles/${editId}/`, { name: form.name, description: form.description });
+        await api.patch(`/circles/${editId}/`, { name: form.name, description: form.description, address: form.address });
       } else {
         await api.post('/circles/', form);
       }
@@ -97,6 +97,10 @@ export default function SiteManagerCircles() {
               <div>
                 <Label className="text-xs uppercase tracking-wider text-gray-500">Description</Label>
                 <Textarea value={form.description} onChange={e => update('description', e.target.value)} className="mt-1 rounded-sm" rows={3} data-testid="circle-form-desc" />
+              </div>
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-gray-500">Address</Label>
+                <Input value={form.address} onChange={e => update('address', e.target.value)} className="mt-1 rounded-sm" data-testid="circle-form-address" placeholder="Street address, city" />
               </div>
             </div>
             <DialogFooter>

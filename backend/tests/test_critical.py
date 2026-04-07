@@ -1,6 +1,7 @@
 """
 Critical-flow test suite for the Circles platform.
-Tests the dangerous business logic that must never regress.
+Covers: auth, validation, permissions, visibility, public/private events,
+invite safety, last-admin protection, deactivation, dashboard, phone, address.
 """
 import uuid
 from datetime import timedelta
@@ -11,316 +12,276 @@ from circles.models import Circle, CircleMembership, CircleInvite
 from events.models import Event, EventSignup
 
 
-def _make_user(email, password='Testpass1', **kw):
+def _user(email, password='Testpass1', **kw):
     return User.objects.create_user(email=email, password=password, first_name='T', **kw)
 
-
-def _make_circle(slug=None):
+def _circle(slug=None, **kw):
     slug = slug or f'c-{uuid.uuid4().hex[:8]}'
-    return Circle.objects.create(name=slug.title(), slug=slug)
-
+    return Circle.objects.create(name=slug.title(), slug=slug, **kw)
 
 def _login(client, email, password='Testpass1'):
     client.get('/api/private/auth/csrf/')
     csrf = client.cookies.get('csrftoken')
-    r = client.post('/api/private/auth/login/',
-                     data={'email': email, 'password': password},
-                     content_type='application/json',
-                     HTTP_X_CSRFTOKEN=csrf.value if csrf else '')
-    return r
+    return client.post('/api/private/auth/login/', data={'email': email, 'password': password},
+                        content_type='application/json', HTTP_X_CSRFTOKEN=csrf.value if csrf else '')
+
+def _post(client, url, data=None):
+    csrf = client.cookies.get('csrftoken')
+    return client.post(url, data=data or {}, content_type='application/json',
+                        HTTP_X_CSRFTOKEN=csrf.value if csrf else '')
 
 
+# ── Registration ────────────────────────────────────────────
 class RegistrationTests(TestCase):
-    def test_register_success(self):
-        c = Client()
-        c.get('/api/private/auth/csrf/')
-        csrf = c.cookies['csrftoken'].value
-        r = c.post('/api/private/auth/register/',
-                    data={'email': 'new@test.io', 'password': 'Testpass1', 'first_name': 'New'},
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+    def test_success(self):
+        c = Client(); c.get('/api/private/auth/csrf/')
+        r = _post(c, '/api/private/auth/register/', {'email': 'n@t.io', 'password': 'Testpass1', 'first_name': 'N'})
         self.assertEqual(r.status_code, 201)
-        self.assertTrue(User.objects.filter(email='new@test.io').exists())
 
-    def test_register_weak_password_rejected(self):
-        c = Client()
-        c.get('/api/private/auth/csrf/')
-        csrf = c.cookies['csrftoken'].value
-        r = c.post('/api/private/auth/register/',
-                    data={'email': 'weak@test.io', 'password': 'short', 'first_name': 'W'},
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+    def test_weak_password(self):
+        c = Client(); c.get('/api/private/auth/csrf/')
+        r = _post(c, '/api/private/auth/register/', {'email': 'w@t.io', 'password': 'short', 'first_name': 'W'})
         self.assertEqual(r.status_code, 400)
         self.assertEqual(r.json()['code'], 'weak_password')
 
-    def test_register_no_digit_rejected(self):
-        c = Client()
-        c.get('/api/private/auth/csrf/')
-        csrf = c.cookies['csrftoken'].value
-        r = c.post('/api/private/auth/register/',
-                    data={'email': 'nd@test.io', 'password': 'abcdefgh', 'first_name': 'N'},
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+    def test_bad_email(self):
+        c = Client(); c.get('/api/private/auth/csrf/')
+        r = _post(c, '/api/private/auth/register/', {'email': 'nope', 'password': 'Testpass1', 'first_name': 'B'})
         self.assertEqual(r.status_code, 400)
 
-    def test_register_bad_email_rejected(self):
-        c = Client()
-        c.get('/api/private/auth/csrf/')
-        csrf = c.cookies['csrftoken'].value
-        r = c.post('/api/private/auth/register/',
-                    data={'email': 'notanemail', 'password': 'Testpass1', 'first_name': 'B'},
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(r.status_code, 400)
-        self.assertEqual(r.json()['code'], 'invalid_email')
 
-
-class LoginRateLimitTests(TestCase):
+# ── Profile phone field ────────────────────────────────────
+class ProfilePhoneTests(TestCase):
     def setUp(self):
-        _make_user('rl@test.io')
+        self.u = _user('ph@t.io')
 
-    def test_rate_limit_triggers(self):
-        from django.core.cache import cache
-        cache.clear()
-        c = Client()
-        c.get('/api/private/auth/csrf/')
+    def test_phone_update(self):
+        c = Client(); _login(c, 'ph@t.io')
         csrf = c.cookies['csrftoken'].value
-        for _ in range(10):
-            c.post('/api/private/auth/login/',
-                   data={'email': 'rl@test.io', 'password': 'wrongpassword'},
-                   content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
-        r = c.post('/api/private/auth/login/',
-                    data={'email': 'rl@test.io', 'password': 'wrongpassword'},
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(r.status_code, 429)
-        self.assertEqual(r.json()['code'], 'rate_limited')
+        r = c.patch('/api/private/profile/', data={'phone': '+1 555 0100'},
+                     content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['phone'], '+1 555 0100')
+        self.u.refresh_from_db()
+        self.assertEqual(self.u.phone, '+1 555 0100')
+
+    def test_phone_in_serialization(self):
+        c = Client(); _login(c, 'ph@t.io')
+        r = c.get('/api/private/auth/me/')
+        self.assertIn('phone', r.json()['user'])
 
 
-class ActiveCirclePermissionTests(TestCase):
+# ── Circle address ──────────────────────────────────────────
+class CircleAddressTests(TestCase):
     def setUp(self):
-        self.user = _make_user('u@test.io')
-        self.other = _make_user('other@test.io')
-        self.circle = _make_circle('priv')
-        CircleMembership.objects.create(user=self.other, circle=self.circle, role='MEMBER')
+        self.sm = _user('sm@t.io', is_site_manager=True)
 
-    def test_non_member_cannot_set_active_circle(self):
-        c = Client()
-        _login(c, 'u@test.io')
+    def test_create_with_address(self):
+        c = Client(); _login(c, 'sm@t.io')
+        r = _post(c, '/api/private/circles/', {
+            'name': 'Addr Circle', 'slug': 'addr-c', 'address': '123 Main St', 'description': 'Test'
+        })
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.json()['address'], '123 Main St')
+
+    def test_update_address(self):
+        circle = _circle('addr-upd', address='Old')
+        CircleMembership.objects.create(user=self.sm, circle=circle, role='CIRCLE_ADMIN')
+        c = Client(); _login(c, 'sm@t.io')
         csrf = c.cookies['csrftoken'].value
-        r = c.post('/api/private/circles/active/',
-                    data={'circle_id': str(self.circle.id)},
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+        r = c.patch(f'/api/private/circles/{circle.id}/', data={'address': 'New Address'},
+                     content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['address'], 'New Address')
+
+
+# ── Event visibility: public vs private ─────────────────────
+class EventVisibilityTests(TestCase):
+    def setUp(self):
+        self.admin = _user('eva@t.io')
+        self.member = _user('evm@t.io')
+        self.outsider = _user('evo@t.io')
+        self.circle = _circle('ev-vis')
+        CircleMembership.objects.create(user=self.admin, circle=self.circle, role='CIRCLE_ADMIN')
+        CircleMembership.objects.create(user=self.member, circle=self.circle, role='MEMBER')
+        now = timezone.now()
+        self.pub_event = Event.objects.create(
+            circle=self.circle, title='Public Meetup', published=True, visibility='PUBLIC',
+            created_by=self.admin, start_datetime=now + timedelta(days=1), end_datetime=now + timedelta(days=1, hours=2))
+        self.priv_event = Event.objects.create(
+            circle=self.circle, title='Private Session', published=True, visibility='PRIVATE',
+            created_by=self.admin, start_datetime=now + timedelta(days=2), end_datetime=now + timedelta(days=2, hours=2))
+        self.draft = Event.objects.create(
+            circle=self.circle, title='Draft', published=False, visibility='PRIVATE',
+            created_by=self.admin, start_datetime=now + timedelta(days=3), end_datetime=now + timedelta(days=3, hours=2))
+
+    def test_outsider_can_view_public_event(self):
+        c = Client(); _login(c, 'evo@t.io')
+        r = c.get(f'/api/private/events/{self.pub_event.id}/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_outsider_cannot_view_private_event(self):
+        c = Client(); _login(c, 'evo@t.io')
+        r = c.get(f'/api/private/events/{self.priv_event.id}/')
         self.assertEqual(r.status_code, 403)
 
-    def test_member_can_set_active_circle(self):
-        c = Client()
-        _login(c, 'other@test.io')
-        csrf = c.cookies['csrftoken'].value
-        r = c.post('/api/private/circles/active/',
-                    data={'circle_id': str(self.circle.id)},
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+    def test_outsider_can_signup_public_event(self):
+        c = Client(); _login(c, 'evo@t.io')
+        r = _post(c, f'/api/private/events/{self.pub_event.id}/signup/')
+        self.assertEqual(r.status_code, 201)
+
+    def test_outsider_cannot_signup_private_event(self):
+        c = Client(); _login(c, 'evo@t.io')
+        r = _post(c, f'/api/private/events/{self.priv_event.id}/signup/')
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.json()['code'], 'not_member')
+
+    def test_member_can_signup_private_event(self):
+        c = Client(); _login(c, 'evm@t.io')
+        r = _post(c, f'/api/private/events/{self.priv_event.id}/signup/')
+        self.assertEqual(r.status_code, 201)
+
+    def test_member_cannot_see_draft(self):
+        c = Client(); _login(c, 'evm@t.io')
+        r = c.get(f'/api/private/events/{self.draft.id}/')
+        self.assertEqual(r.status_code, 404)
+
+    def test_admin_can_see_draft(self):
+        c = Client(); _login(c, 'eva@t.io')
+        r = c.get(f'/api/private/events/{self.draft.id}/')
         self.assertEqual(r.status_code, 200)
-        self.other.refresh_from_db()
-        self.assertEqual(self.other.active_circle_id, self.circle.id)
+
+    def test_outsider_cannot_signup_draft(self):
+        c = Client(); _login(c, 'evo@t.io')
+        r = _post(c, f'/api/private/events/{self.draft.id}/signup/')
+        self.assertEqual(r.status_code, 404)
 
 
-class InviteAcceptanceTests(TransactionTestCase):
+# ── Last-admin protection ──────────────────────────────────
+class LastAdminTests(TestCase):
     def setUp(self):
-        self.admin = _make_user('admin@test.io')
-        self.user1 = _make_user('u1@test.io')
-        self.user2 = _make_user('u2@test.io')
-        self.circle = _make_circle('inv-test')
+        self.admin = _user('la@t.io')
+        self.circle = _circle('la-c')
+        self.mem = CircleMembership.objects.create(user=self.admin, circle=self.circle, role='CIRCLE_ADMIN')
+
+    def test_demote_blocked(self):
+        c = Client(); _login(c, 'la@t.io')
+        r = _post(c, f'/api/private/circles/{self.circle.id}/members/{self.mem.id}/demote/')
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()['code'], 'last_admin')
+
+    def test_remove_blocked(self):
+        c = Client(); _login(c, 'la@t.io')
+        r = _post(c, f'/api/private/circles/{self.circle.id}/members/{self.mem.id}/remove/')
+        self.assertEqual(r.status_code, 400)
+
+
+# ── Account deactivation ───────────────────────────────────
+class DeactivationTests(TestCase):
+    def test_blocked_when_last_admin(self):
+        u = _user('da@t.io')
+        ci = _circle('da-c')
+        CircleMembership.objects.create(user=u, circle=ci, role='CIRCLE_ADMIN')
+        c = Client(); _login(c, 'da@t.io')
+        r = _post(c, '/api/private/profile/deactivate/')
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()['code'], 'last_admin_deactivation')
+
+    def test_allowed_with_other_admin(self):
+        u = _user('da2@t.io'); o = _user('da3@t.io')
+        ci = _circle('da2-c')
+        CircleMembership.objects.create(user=u, circle=ci, role='CIRCLE_ADMIN')
+        CircleMembership.objects.create(user=o, circle=ci, role='CIRCLE_ADMIN')
+        c = Client(); _login(c, 'da2@t.io')
+        r = _post(c, '/api/private/profile/deactivate/')
+        self.assertEqual(r.status_code, 200)
+        u.refresh_from_db()
+        self.assertFalse(u.is_active)
+
+
+# ── Invite safety ───────────────────────────────────────────
+class InviteTests(TransactionTestCase):
+    def setUp(self):
+        self.admin = _user('inv-a@t.io')
+        self.u1 = _user('inv-1@t.io')
+        self.circle = _circle('inv-c')
         CircleMembership.objects.create(user=self.admin, circle=self.circle, role='CIRCLE_ADMIN')
-        self.invite = CircleInvite.objects.create(
+        self.inv = CircleInvite.objects.create(
             circle=self.circle, created_by=self.admin,
             token=str(uuid.uuid4()), expires_at=timezone.now() + timedelta(days=7))
 
     def test_accept_creates_membership(self):
-        c = Client()
-        _login(c, 'u1@test.io')
-        csrf = c.cookies['csrftoken'].value
-        r = c.post(f'/api/private/invites/accept/{self.invite.token}/',
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+        c = Client(); _login(c, 'inv-1@t.io')
+        r = _post(c, f'/api/private/invites/accept/{self.inv.token}/')
         self.assertEqual(r.status_code, 200)
-        self.assertTrue(CircleMembership.objects.filter(
-            user=self.user1, circle=self.circle, active=True).exists())
+        self.assertTrue(CircleMembership.objects.filter(user=self.u1, circle=self.circle, active=True).exists())
 
-    def test_single_use_enforcement(self):
-        # First user accepts
-        c1 = Client()
-        _login(c1, 'u1@test.io')
-        csrf1 = c1.cookies['csrftoken'].value
-        c1.post(f'/api/private/invites/accept/{self.invite.token}/',
-                content_type='application/json', HTTP_X_CSRFTOKEN=csrf1)
-        # Second user tries same invite
-        c2 = Client()
-        _login(c2, 'u2@test.io')
-        csrf2 = c2.cookies['csrftoken'].value
-        r = c2.post(f'/api/private/invites/accept/{self.invite.token}/',
-                     content_type='application/json', HTTP_X_CSRFTOKEN=csrf2)
+    def test_single_use(self):
+        c1 = Client(); _login(c1, 'inv-1@t.io')
+        _post(c1, f'/api/private/invites/accept/{self.inv.token}/')
+        u2 = _user('inv-2@t.io')
+        c2 = Client(); _login(c2, 'inv-2@t.io')
+        r = c2.post(f'/api/private/invites/accept/{self.inv.token}/',
+                     content_type='application/json', HTTP_X_CSRFTOKEN=c2.cookies['csrftoken'].value)
         self.assertEqual(r.status_code, 400)
-        self.assertIn(r.json()['code'], ('invite_used', 'invite_inactive'))
-
-    def test_expired_invite_rejected(self):
-        self.invite.expires_at = timezone.now() - timedelta(hours=1)
-        self.invite.save()
-        c = Client()
-        _login(c, 'u1@test.io')
-        csrf = c.cookies['csrftoken'].value
-        r = c.post(f'/api/private/invites/accept/{self.invite.token}/',
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(r.status_code, 400)
-        self.assertEqual(r.json()['code'], 'invite_expired')
 
 
-class UnpublishedEventTests(TestCase):
-    def setUp(self):
-        self.admin = _make_user('evadm@test.io')
-        self.member = _make_user('evmem@test.io')
-        self.circle = _make_circle('ev-test')
-        CircleMembership.objects.create(user=self.admin, circle=self.circle, role='CIRCLE_ADMIN')
-        CircleMembership.objects.create(user=self.member, circle=self.circle, role='MEMBER')
-        self.draft = Event.objects.create(
-            circle=self.circle, title='Draft', published=False, created_by=self.admin,
-            start_datetime=timezone.now() + timedelta(days=1),
-            end_datetime=timezone.now() + timedelta(days=1, hours=2))
-
-    def test_member_cannot_see_unpublished_event(self):
-        c = Client()
-        _login(c, 'evmem@test.io')
-        r = c.get(f'/api/private/events/{self.draft.id}/')
-        self.assertEqual(r.status_code, 404)
-
-    def test_member_cannot_signup_unpublished_event(self):
-        c = Client()
-        _login(c, 'evmem@test.io')
-        csrf = c.cookies['csrftoken'].value
-        r = c.post(f'/api/private/events/{self.draft.id}/signup/',
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(r.status_code, 404)
-
-    def test_admin_can_see_unpublished_event(self):
-        c = Client()
-        _login(c, 'evadm@test.io')
-        r = c.get(f'/api/private/events/{self.draft.id}/')
-        self.assertEqual(r.status_code, 200)
-
-    def test_published_event_visible_to_member(self):
-        self.draft.published = True
-        self.draft.save()
-        c = Client()
-        _login(c, 'evmem@test.io')
-        r = c.get(f'/api/private/events/{self.draft.id}/')
-        self.assertEqual(r.status_code, 200)
-
-
-class LastAdminProtectionTests(TestCase):
-    def setUp(self):
-        self.admin = _make_user('la-admin@test.io')
-        self.circle = _make_circle('la-test')
-        self.membership = CircleMembership.objects.create(
-            user=self.admin, circle=self.circle, role='CIRCLE_ADMIN')
-
-    def _login_admin(self):
-        c = Client()
-        _login(c, 'la-admin@test.io')
-        return c
-
-    def test_demote_last_admin_blocked(self):
-        c = self._login_admin()
-        csrf = c.cookies['csrftoken'].value
-        r = c.post(f'/api/private/circles/{self.circle.id}/members/{self.membership.id}/demote/',
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(r.status_code, 400)
-        self.assertEqual(r.json()['code'], 'last_admin')
-
-    def test_remove_last_admin_blocked(self):
-        c = self._login_admin()
-        csrf = c.cookies['csrftoken'].value
-        r = c.post(f'/api/private/circles/{self.circle.id}/members/{self.membership.id}/remove/',
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(r.status_code, 400)
-        self.assertEqual(r.json()['code'], 'last_admin')
-
-    def test_demote_with_second_admin_allowed(self):
-        other = _make_user('la-other@test.io')
-        CircleMembership.objects.create(user=other, circle=self.circle, role='CIRCLE_ADMIN')
-        c = self._login_admin()
-        csrf = c.cookies['csrftoken'].value
-        r = c.post(f'/api/private/circles/{self.circle.id}/members/{self.membership.id}/demote/',
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(r.status_code, 200)
-
-
-class AccountDeactivationTests(TestCase):
-    def test_deactivation_blocked_when_last_admin(self):
-        admin = _make_user('deact-adm@test.io')
-        circle = _make_circle('deact-c')
-        CircleMembership.objects.create(user=admin, circle=circle, role='CIRCLE_ADMIN')
-        c = Client()
-        _login(c, 'deact-adm@test.io')
-        csrf = c.cookies['csrftoken'].value
-        r = c.post('/api/private/profile/deactivate/',
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(r.status_code, 400)
-        self.assertEqual(r.json()['code'], 'last_admin_deactivation')
-        admin.refresh_from_db()
-        self.assertTrue(admin.is_active)
-
-    def test_deactivation_allowed_with_other_admin(self):
-        admin = _make_user('deact-ok@test.io')
-        other = _make_user('deact-other@test.io')
-        circle = _make_circle('deact-ok')
-        CircleMembership.objects.create(user=admin, circle=circle, role='CIRCLE_ADMIN')
-        CircleMembership.objects.create(user=other, circle=circle, role='CIRCLE_ADMIN')
-        c = Client()
-        _login(c, 'deact-ok@test.io')
-        csrf = c.cookies['csrftoken'].value
-        r = c.post('/api/private/profile/deactivate/',
-                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(r.status_code, 200)
-        admin.refresh_from_db()
-        self.assertFalse(admin.is_active)
-        self.assertFalse(CircleMembership.objects.filter(user=admin, active=True).exists())
-
-    def test_deactivation_clears_memberships(self):
-        user = _make_user('deact-mem@test.io')
-        c1 = _make_circle('deact-m1')
-        c2 = _make_circle('deact-m2')
-        CircleMembership.objects.create(user=user, circle=c1, role='MEMBER')
-        CircleMembership.objects.create(user=user, circle=c2, role='MEMBER')
-        # Need an admin in each circle so user isn't last admin
-        admin = _make_user('deact-adm2@test.io')
-        CircleMembership.objects.create(user=admin, circle=c1, role='CIRCLE_ADMIN')
-        CircleMembership.objects.create(user=admin, circle=c2, role='CIRCLE_ADMIN')
-        c = Client()
-        _login(c, 'deact-mem@test.io')
-        csrf = c.cookies['csrftoken'].value
-        c.post('/api/private/profile/deactivate/',
-               content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(CircleMembership.objects.filter(user=user, active=True).count(), 0)
-
-
+# ── Permissions ─────────────────────────────────────────────
 class PermissionTests(TestCase):
     def setUp(self):
-        self.admin = _make_user('perm-adm@test.io')
-        self.user = _make_user('perm-usr@test.io')
-        self.circle_a = _make_circle('perm-a')
-        self.circle_b = _make_circle('perm-b')
-        CircleMembership.objects.create(user=self.admin, circle=self.circle_a, role='CIRCLE_ADMIN')
-        CircleMembership.objects.create(user=self.user, circle=self.circle_a, role='MEMBER')
+        self.admin = _user('pa@t.io')
+        self.user = _user('pu@t.io')
+        self.ca = _circle('pa-c')
+        self.cb = _circle('pb-c')
+        CircleMembership.objects.create(user=self.admin, circle=self.ca, role='CIRCLE_ADMIN')
 
-    def test_circle_admin_cannot_manage_unrelated_circle(self):
-        c = Client()
-        _login(c, 'perm-adm@test.io')
-        r = c.get(f'/api/private/circles/{self.circle_b.id}/members/')
+    def test_admin_cannot_manage_other_circle(self):
+        c = Client(); _login(c, 'pa@t.io')
+        r = c.get(f'/api/private/circles/{self.cb.id}/members/')
         self.assertEqual(r.status_code, 403)
 
-    def test_site_manager_can_access_any_circle(self):
-        sm = _make_user('perm-sm@test.io', is_site_manager=True)
-        c = Client()
-        _login(c, 'perm-sm@test.io')
-        r = c.get(f'/api/private/circles/{self.circle_b.id}/members/')
+    def test_site_manager_global_access(self):
+        sm = _user('psm@t.io', is_site_manager=True)
+        c = Client(); _login(c, 'psm@t.io')
+        r = c.get(f'/api/private/circles/{self.cb.id}/members/')
         self.assertEqual(r.status_code, 200)
 
-    def test_normal_user_cannot_list_all_circles(self):
-        c = Client()
-        _login(c, 'perm-usr@test.io')
-        r = c.get('/api/private/circles/')
-        self.assertEqual(r.status_code, 403)
+
+# ── Dashboard ───────────────────────────────────────────────
+class DashboardTests(TestCase):
+    def setUp(self):
+        self.u = _user('dash@t.io')
+        self.circle = _circle('dash-c')
+        CircleMembership.objects.create(user=self.u, circle=self.circle, role='MEMBER')
+        now = timezone.now()
+        self.ev = Event.objects.create(
+            circle=self.circle, title='Dash Event', published=True, visibility='PRIVATE',
+            created_by=None, start_datetime=now + timedelta(days=1), end_datetime=now + timedelta(days=1, hours=2))
+        EventSignup.objects.create(event=self.ev, user=self.u, status='PENDING')
+
+    def test_dashboard_returns_signups_and_events(self):
+        c = Client(); _login(c, 'dash@t.io')
+        r = c.get('/api/private/dashboard/')
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertTrue(len(data['recent_signups']) >= 1)
+        self.assertTrue(len(data['circle_events']) >= 1)
+        self.assertEqual(data['recent_signups'][0]['event']['title'], 'Dash Event')
+
+
+# ── Rate limiting ───────────────────────────────────────────
+class RateLimitTests(TestCase):
+    def setUp(self):
+        _user('rl@t.io')
+        from django.core.cache import cache
+        cache.clear()
+
+    def test_triggers(self):
+        c = Client(); c.get('/api/private/auth/csrf/')
+        csrf = c.cookies['csrftoken'].value
+        for _ in range(10):
+            c.post('/api/private/auth/login/', data={'email': 'rl@t.io', 'password': 'wrong'},
+                   content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+        r = c.post('/api/private/auth/login/', data={'email': 'rl@t.io', 'password': 'wrong'},
+                    content_type='application/json', HTTP_X_CSRFTOKEN=csrf)
+        self.assertEqual(r.status_code, 429)

@@ -24,6 +24,7 @@ def serialize_user(user):
         'email': user.email,
         'first_name': user.first_name,
         'last_name': user.last_name,
+        'phone': user.phone,
         'is_active': user.is_active,
         'is_site_manager': user.is_site_manager,
         'active_circle_id': str(user.active_circle_id) if user.active_circle_id else None,
@@ -96,10 +97,7 @@ def logout_view(request):
 def me_view(request):
     if not request.user.is_authenticated:
         return JsonResponse({'authenticated': False}, status=200)
-    return JsonResponse({
-        'authenticated': True,
-        'user': serialize_user(request.user),
-    })
+    return JsonResponse({'authenticated': True, 'user': serialize_user(request.user)})
 
 
 @require_http_methods(['GET', 'PATCH'])
@@ -118,6 +116,8 @@ def profile_view(request):
         user.first_name = val
     if 'last_name' in data:
         user.last_name = data['last_name'].strip()
+    if 'phone' in data:
+        user.phone = (data['phone'] or '').strip()[:30]
     if 'email' in data:
         new_email = data['email'].strip().lower()
         if not validate_email_format(new_email):
@@ -132,14 +132,8 @@ def profile_view(request):
 @require_POST
 @login_required_json
 def deactivate_view(request):
-    """
-    Deactivate account safely.
-    Blocks if the user is the last active admin of any circle — the user must
-    reassign admin rights first to avoid orphaning a circle.
-    """
     user = request.user
     from circles.models import CircleMembership
-    # Check: is this user the sole active admin of any circle?
     admin_memberships = CircleMembership.objects.filter(
         user=user, role='CIRCLE_ADMIN', active=True
     ).select_related('circle')
@@ -166,6 +160,68 @@ def deactivate_view(request):
     return JsonResponse({'ok': True, 'message': 'Account deactivated.'})
 
 
+# ── Dashboard ───────────────────────────────────────────────
+@require_GET
+@login_required_json
+def dashboard_view(request):
+    """User dashboard: recent signups + events from all my circles."""
+    from circles.models import CircleMembership
+    from events.models import Event, EventSignup
+
+    user = request.user
+    my_circle_ids = list(
+        CircleMembership.objects.filter(user=user, active=True).values_list('circle_id', flat=True)
+    )
+
+    # Recent signups by this user (last 10)
+    recent_signups = EventSignup.objects.filter(
+        user=user
+    ).select_related('event', 'event__circle').order_by('-requested_at')[:10]
+    signups_data = [{
+        'id': str(s.id),
+        'status': s.status,
+        'requested_at': s.requested_at.isoformat(),
+        'event': {
+            'id': str(s.event.id),
+            'title': s.event.title,
+            'start_datetime': s.event.start_datetime.isoformat(),
+            'circle_name': s.event.circle.name,
+            'circle_id': str(s.event.circle_id),
+            'visibility': s.event.visibility,
+        },
+    } for s in recent_signups]
+
+    # Upcoming published events from all my circles
+    from django.utils import timezone as tz
+    circle_events = Event.objects.filter(
+        circle_id__in=my_circle_ids, published=True,
+        start_datetime__gte=tz.now(),
+    ).select_related('circle').order_by('start_datetime')[:20]
+
+    # Batch-load signups
+    signup_map = {}
+    if circle_events:
+        for su in EventSignup.objects.filter(event__in=circle_events, user=user):
+            signup_map[su.event_id] = su
+
+    events_data = [{
+        'id': str(e.id),
+        'title': e.title,
+        'start_datetime': e.start_datetime.isoformat(),
+        'end_datetime': e.end_datetime.isoformat(),
+        'location': e.location,
+        'visibility': e.visibility,
+        'circle_name': e.circle.name,
+        'circle_id': str(e.circle_id),
+        'my_signup_status': signup_map[e.id].status if e.id in signup_map else None,
+    } for e in circle_events]
+
+    return JsonResponse({
+        'recent_signups': signups_data,
+        'circle_events': events_data,
+    })
+
+
 @require_GET
 @login_required_json
 def admin_overview(request):
@@ -190,19 +246,13 @@ def admin_users(request):
     qs = User.objects.all().order_by('-created_at')
     search = request.GET.get('search', '').strip().lower()
     if search:
-        qs = qs.filter(
-            Q(email__icontains=search) |
-            Q(first_name__icontains=search) |
-            Q(last_name__icontains=search)
-        )
+        qs = qs.filter(Q(email__icontains=search) | Q(first_name__icontains=search) | Q(last_name__icontains=search))
     items, pagination = paginate_qs(request, qs, default_per_page=50)
     return JsonResponse({
         'users': [{
-            'id': str(u.id),
-            'email': u.email,
-            'first_name': u.first_name,
-            'last_name': u.last_name,
-            'is_active': u.is_active,
+            'id': str(u.id), 'email': u.email,
+            'first_name': u.first_name, 'last_name': u.last_name,
+            'phone': u.phone, 'is_active': u.is_active,
             'is_site_manager': u.is_site_manager,
             'created_at': u.created_at.isoformat(),
         } for u in items],

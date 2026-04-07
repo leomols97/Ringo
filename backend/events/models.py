@@ -4,6 +4,8 @@ from django.conf import settings
 
 
 class Event(models.Model):
+    VISIBILITY_CHOICES = [('PUBLIC', 'Public'), ('PRIVATE', 'Private')]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     circle = models.ForeignKey('circles.Circle', on_delete=models.CASCADE, related_name='events')
     title = models.CharField(max_length=255)
@@ -12,6 +14,7 @@ class Event(models.Model):
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
     published = models.BooleanField(default=True)
+    visibility = models.CharField(max_length=10, choices=VISIBILITY_CHOICES, default='PRIVATE')
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -21,6 +24,7 @@ class Event(models.Model):
         indexes = [
             models.Index(fields=['circle', 'published']),
             models.Index(fields=['start_datetime']),
+            models.Index(fields=['visibility']),
         ]
 
     def __str__(self):
@@ -28,11 +32,7 @@ class Event(models.Model):
 
 
 class EventSignup(models.Model):
-    STATUS_CHOICES = [
-        ('PENDING', 'Pending'),
-        ('APPROVED', 'Approved'),
-        ('REJECTED', 'Rejected'),
-    ]
+    STATUS_CHOICES = [('PENDING', 'Pending'), ('APPROVED', 'Approved'), ('REJECTED', 'Rejected')]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='signups')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='event_signups')
@@ -47,10 +47,7 @@ class EventSignup(models.Model):
     class Meta:
         db_table = 'events_signup'
         unique_together = ('event', 'user')
-        indexes = [
-            models.Index(fields=['event', 'status']),
-            models.Index(fields=['user']),
-        ]
+        indexes = [models.Index(fields=['event', 'status']), models.Index(fields=['user'])]
 
     def __str__(self):
         return f'{self.user.email} -> {self.event.title} ({self.status})'

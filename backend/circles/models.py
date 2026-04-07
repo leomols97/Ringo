@@ -8,25 +8,20 @@ class Circle(models.Model):
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, max_length=255)
     description = models.TextField(blank=True, default='')
+    address = models.CharField(max_length=500, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'circles_circle'
-        indexes = [
-            models.Index(fields=['slug']),
-            models.Index(fields=['created_at']),
-        ]
+        indexes = [models.Index(fields=['slug']), models.Index(fields=['created_at'])]
 
     def __str__(self):
         return self.name
 
 
 class CircleMembership(models.Model):
-    ROLE_CHOICES = [
-        ('MEMBER', 'Member'),
-        ('CIRCLE_ADMIN', 'Circle Admin'),
-    ]
+    ROLE_CHOICES = [('MEMBER', 'Member'), ('CIRCLE_ADMIN', 'Circle Admin')]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='memberships')
     circle = models.ForeignKey(Circle, on_delete=models.CASCADE, related_name='memberships')
@@ -59,10 +54,7 @@ class CircleInvite(models.Model):
 
     class Meta:
         db_table = 'circles_invite'
-        indexes = [
-            models.Index(fields=['token']),
-            models.Index(fields=['circle', 'is_active']),
-        ]
+        indexes = [models.Index(fields=['token']), models.Index(fields=['circle', 'is_active'])]
 
     def __str__(self):
         return f'Invite to {self.circle.name} ({self.token[:8]}...)'
