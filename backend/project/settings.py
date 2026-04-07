@@ -45,12 +45,12 @@ AUTH_USER_MODEL = 'accounts.User'
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 86400 * 7
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SECURE = True
 
 CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SECURE = True
 CSRF_FAILURE_VIEW = 'project.utils.csrf_failure_view'
 
 frontend_url = os.environ.get('FRONTEND_URL', '')
@@ -63,7 +63,12 @@ CSRF_TRUSTED_ORIGINS = [u for u in [frontend_url, app_url] if u] + [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https://.*\.preview\.emergentagent\.com$',
+    r'^https://.*\.preview\.emergentcf\.cloud$',
+    r'^https://.*\.emergentcf\.cloud$',
+    r'^http://localhost:\d+$',
+]
 
 USE_X_FORWARDED_HOST = True
 # TODO(COPILOT): Re-enable SECURE_PROXY_SSL_HEADER in production with proper Referer forwarding
