@@ -1,34 +1,42 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* App-level overrides - kept minimal */
+.page-container {
+  @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.section-title {
+  @apply text-2xl sm:text-3xl font-medium tracking-tight text-black;
+  font-family: 'Outfit', sans-serif;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+.section-subtitle {
+  @apply text-sm text-gray-500 mt-1;
 }
 
-.App-link {
-    color: #61dafb;
+.data-row {
+  @apply flex items-center justify-between py-3 border-b border-gray-200;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.data-row:last-child {
+  @apply border-b-0;
+}
+
+.empty-state {
+  @apply flex flex-col items-center justify-center py-16 text-center;
+}
+
+.empty-state-text {
+  @apply text-sm text-gray-400 mt-2;
+}
+
+.stat-card {
+  @apply border border-gray-200 rounded-sm p-5;
+}
+
+.stat-value {
+  @apply text-3xl font-medium tracking-tight text-black;
+  font-family: 'Outfit', sans-serif;
+}
+
+.stat-label {
+  @apply text-xs uppercase tracking-widest text-gray-400 font-bold mt-1;
 }

@@ -6,6 +6,10 @@ module.exports = {
     "./public/index.html"
   ],
   theme: {
+  	fontFamily: {
+  		heading: ['Outfit', 'system-ui', 'sans-serif'],
+  		body: ['IBM Plex Sans', 'system-ui', 'sans-serif'],
+  	},
   	extend: {
   		borderRadius: {
   			lg: 'var(--radius)',
